@@ -37,3 +37,12 @@ Request for “/foo” enters cache
 
 [*cleaned] response: response from the wrapped service with the CACHE-KEYS and CLEAR-KEYS headers removed.
 
+TODO
+----
+- validate backend url
+- error on JSON parsing catch
+- Review the api: get request is not ok for state changing
+- review https://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+- add list cached keys
+
+

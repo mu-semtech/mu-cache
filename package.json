@@ -1,0 +1,31 @@
+{
+  "name": "mu-cache",
+  "version": "0.0.1",
+  "description": "caching service for mu architecture",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cecemel/mu-cache.git"
+  },
+  "keywords": [
+    "mu-semtech"
+  ],
+  "dependencies": {
+    "underscore": "*",
+    "http": "*",
+    "http-proxy": "*",
+    "log4js": "*"
+  },
+  "author": "cecemel",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cecemel/mu-cache/issues"
+  },
+  "homepage": "https://github.com/cecemel/mu-cache#readme",
+  "scripts": {
+    "start": "node index.js"
+  }
+}
