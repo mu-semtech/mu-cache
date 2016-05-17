@@ -135,8 +135,9 @@ function arrify(data) {
 }
 
 function writeResponse(response, statusCode, body, headers) {
+  response.useChunkedEncodingByDefault = false;
   var headers = (_.isEmpty(headers)) ? {
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
   } : headers;
   response.writeHead(statusCode, headers);
   var str = (body || {}) instanceof Object ? JSON.stringify(body || {}) : body; //needs refinment
