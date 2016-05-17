@@ -22,7 +22,6 @@ var server = http.createServer(function(request, response) {
       var entries = (keys.length == 0 && cache) || cache.filter(function(e) {
         return intersects(_.isEqual, e.keys, keys);
       });
-
       writeResponse(response, 200, entries);
       return;
     }
@@ -41,7 +40,7 @@ var server = http.createServer(function(request, response) {
   //make sure client gets most up to date information if he requests so
   if (request.headers["clear-keys"]) {
     var keysToClear = arrify(JSON.parse(request.headers["clear-keys"]));
-    cache = flushCache(cache, keysToClear)
+    cache = flushCache(cache, keysToClear);
   }
 
   //now let's try to hit the cache
@@ -62,14 +61,13 @@ var server = http.createServer(function(request, response) {
 //intercept and eventually store response from backend
 proxy.on("proxyRes", function(proxyResponse, request, response) {
   if (request.headers["cache-keys"] && proxyResponse.statusCode == 200) {
-    proxyResponse.on("data", _.partial(pushCache, cache, request.url, arrify(JSON.parse(request.headers["cache-keys"])),
-      proxyResponse.headers))
+    pushCacheStream(cache, request.url, arrify(JSON.parse(request.headers["cache-keys"])), proxyResponse);
   }
 });
 
 proxy.on("error", function(error, request, response) {
   logger.error(error.message);
-  writeResponse(response, 502)
+  writeResponse(response, 502);
 });
 
 logger.info("listening on port " + serverPort);
@@ -80,7 +78,7 @@ server.listen(serverPort);
  ********************************************************************************************************************/
 function parseKeysQuery(query) {
   var data = query.split('/keys/');
-  return (data.length == 2) ? arrify(JSON.parse(data[1])) : [];
+  return (data.length == 2 && !_.every(data, _.isEmpty)) ? arrify(JSON.parse(data[1])) : [];
 }
 
 function isKeysRoute(request) {
@@ -88,30 +86,35 @@ function isKeysRoute(request) {
   return (unescape(request.url).match(/^\/keys\/?$|^\/keys\/[\S\s]*$/) && true) || false;
 }
 
-function pushCache(cache, requestUrl, requestKeys, responseHeaders, responseData) {
+function pushCacheStream(cache, requestUrl, requestKeys, responseStream) {
   var cacheEntry = {
     query: requestUrl,
     keys: requestKeys,
     response: {
-      headers: responseHeaders,
-      data: responseData
+      headers: responseStream.headers,
+      data: ''
     }
-  }
-  cache.push(cacheEntry);
+  };
 
-  return cache;
+  responseStream.on("data", function(chunk) {
+    cacheEntry.response.data += chunk;
+  })
+
+  responseStream.on("end", function() {
+    cache.push(cacheEntry);
+  });
 }
 
 function hitCache(cache, query) {
   return cache.find(function(element) {
-    return element.query === query
+    return element.query === query;
   })
 }
 
 function flushCache(cache, keys) {
   //TODO: speficy short way to delete all?
   return cache.filter(function(e) {
-    return !intersects(_.isEqual, e.keys, keys)
+    return !intersects(_.isEqual, e.keys, keys);
   });
 }
 
@@ -132,9 +135,10 @@ function arrify(data) {
 }
 
 function writeResponse(response, statusCode, body, headers) {
-  response.writeHead(statusCode, _.extend({
+  var headers = (_.isEmpty(headers)) ? {
     "Content-Type": "application/json"
-  }, headers || {}));
-  var str = (body || {}) instanceof Object ? JSON.stringify(body || {}) : body
+  } : headers;
+  response.writeHead(statusCode, headers);
+  var str = (body || {}) instanceof Object ? JSON.stringify(body || {}) : body; //needs refinment
   response.end(str);
 }
