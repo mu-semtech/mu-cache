@@ -9,6 +9,6 @@ WORKDIR /app
 RUN npm set progress=false
 RUN npm install
 
-COPY index.js /app/
+COPY *.js /app/
 
 CMD ["npm", "run", "start"]

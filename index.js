@@ -1,32 +1,40 @@
 var _ = require("underscore");
+var utils = require("./utils");
+var cacheUtils = require("./cache-utils");
 var http = require("http");
 var logger = require('log4js').getLogger();
 var httpProxy = require("http-proxy");
-var cacheBackend = process.env.CACHE_BACKEND; //validate backend url!
+var cacheBackend = setCacheBackend(process.env);
 var serverPort = process.env.PORT || 5000;
 
-var cache = [];
+var cache = cacheUtils.initCache();
 var proxy = httpProxy.createProxyServer({});
 var server = http.createServer(function(request, response) {
 
   if (isKeysRoute(request)) {
-    var keys = parseKeysQuery(unescape(request.url)); //needs catching error with json parse
+
+    var keys;
+    try {
+      keys = parseKeysQuery(unescape(request.url));
+    } catch (e) {
+      return writeResponseJSON(response, 400, {
+        "msg":"Errors parsing keys"
+      });
+    }
 
     if (request.method === "DELETE") {
-      cache = flushCache(cache, keys);
-      writeResponse(response, 200);
+      cache = cacheUtils.flush(cache, keys);
+      writeResponseJSON(response, 200, {});
       return;
     }
 
     if (request.method === "GET") {
-      var entries = (keys.length == 0 && cache) || cache.filter(function(e) {
-        return intersects(_.isEqual, e.keys, keys);
-      });
-      writeResponse(response, 200, entries);
+      var entries = (keys.length == 0 && cache) || cacheUtils.filter(cache, keys);
+      writeResponseJSON(response, 200, entries);
       return;
     }
 
-    writeResponse(response, 405);
+    writeResponseJSON(response, 405, {});
     return;
   }
 
@@ -37,18 +45,12 @@ var server = http.createServer(function(request, response) {
     return;
   }
 
-  //make sure client gets most up to date information if he requests so
-  if (request.headers["clear-keys"]) {
-    var keysToClear = arrify(JSON.parse(request.headers["clear-keys"]));
-    cache = flushCache(cache, keysToClear);
-  }
+  //try to hit the cache
+  var cacheEntry = cacheUtils.hit(cache, request.url);
 
-  //now let's try to hit the cache
-  var cacheEntry = hitCache(cache, request.url);
-
-  if (existy(cacheEntry)) {
+  if (utils.existy(cacheEntry)) {
     logger.info("Cache hit for " + request.url);
-    writeResponse(response, 200, cacheEntry.response.data, cacheEntry.response.headers);
+    writeResponse(response, 200, cacheEntry.data, cacheEntry.headers);
     return;
   }
 
@@ -58,16 +60,29 @@ var server = http.createServer(function(request, response) {
   });
 });
 
-//intercept and eventually store response from backend
-proxy.on("proxyRes", function(proxyResponse, request, response) {
-  if (request.headers["cache-keys"] && proxyResponse.statusCode == 200) {
-    pushCacheStream(cache, request.url, arrify(JSON.parse(request.headers["cache-keys"])), proxyResponse);
+//intercept and eventually manipulate response from target
+proxy.on("proxyRes", function(backendResponse, request, response) {
+  
+  if(backendResponse.statusCode !== 200){
+    return;
+  }
+
+  if (backendResponse.headers["clear-keys"]) {
+    cache = cacheUtils.flush(cache, utils.arrify(JSON.parse(backendResponse.headers["clear-keys"]))); //ok to crash?
+  }
+
+  if (backendResponse.headers["cache-keys"]) {
+    stripBackendResponse(backendResponse)
+    .then(function(stripped) {
+        var entry = cacheUtils.createEntry(request.url, stripped.keys, stripped.headers, stripped.data);
+        cache = cacheUtils.update(cache, entry);
+    });
   }
 });
 
 proxy.on("error", function(error, request, response) {
   logger.error(error.message);
-  writeResponse(response, 502);
+  writeResponseJSON(response, 502, {});
 });
 
 logger.info("listening on port " + serverPort);
@@ -78,7 +93,7 @@ server.listen(serverPort);
  ********************************************************************************************************************/
 function parseKeysQuery(query) {
   var data = query.split('/keys/');
-  return (data.length == 2 && !_.every(data, _.isEmpty)) ? arrify(JSON.parse(data[1])) : [];
+  return (data.length == 2 && !_.every(data, _.isEmpty)) ? utils.arrify(JSON.parse(data[1])) : [];
 }
 
 function isKeysRoute(request) {
@@ -86,60 +101,43 @@ function isKeysRoute(request) {
   return (unescape(request.url).match(/^\/keys\/?$|^\/keys\/[\S\s]*$/) && true) || false;
 }
 
-function pushCacheStream(cache, requestUrl, requestKeys, responseStream) {
-  var cacheEntry = {
-    query: requestUrl,
-    keys: requestKeys,
-    response: {
-      headers: responseStream.headers,
-      data: ''
-    }
-  };
+function stripBackendResponse(response) {
+  return new Promise(function(resolve, reject) {
+    var keys = utils.arrify(JSON.parse(response.headers["cache-keys"]));
+    delete response.headers["cache-keys"];
+    delete response.headers["clear-keys"];
 
-  responseStream.on("data", function(chunk) {
-    cacheEntry.response.data += chunk;
-  })
+    var data = '';
 
-  responseStream.on("end", function() {
-    cache.push(cacheEntry);
+    response.on("data", function(chunk) {
+       data += chunk;
+    });
+
+    response.on("end", function() {
+      resolve({
+        "data": data,
+        "headers": response.headers, 
+        "keys":  keys
+      });
+    });
   });
 }
 
-function hitCache(cache, query) {
-  return cache.find(function(element) {
-    return element.query === query;
-  })
-}
-
-function flushCache(cache, keys) {
-  //TODO: speficy short way to delete all?
-  return cache.filter(function(e) {
-    return !intersects(_.isEqual, e.keys, keys);
+function writeResponseJSON(response, statusCode, body) {
+  return writeResponse(response, statusCode, JSON.stringify(body), {
+    "Content-Type": "application/json"
   });
-}
-
-function intersects(comparator, array1, array2) {
-  return existy(array1.find(function(element1) {
-    return existy(array2.find(function(element2) {
-      return comparator(element1, element2);
-    }));
-  }));
-}
-
-function existy(data) {
-  return !(_.isNaN(data) || _.isNull(data) || _.isUndefined(data));
-}
-
-function arrify(data) {
-  return (data instanceof Array) ? data : [data];
 }
 
 function writeResponse(response, statusCode, body, headers) {
   response.useChunkedEncodingByDefault = false;
-  var headers = (_.isEmpty(headers)) ? {
-    "Content-Type": "application/json",
-  } : headers;
   response.writeHead(statusCode, headers);
-  var str = (body || {}) instanceof Object ? JSON.stringify(body || {}) : body; //needs refinment
-  response.end(str);
+  return response.end(body);
+}
+
+function setCacheBackend(env){
+  if(!env.CACHE_BACKEND){
+    throw("Please provide url to environment variable CACHE_BACKEND!")
+  }
+  return env.CACHE_BACKEND;
 }
