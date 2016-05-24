@@ -40,6 +40,7 @@ Request for “/foo” enters cache
 TODO
 ----
 - review https://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
-- intermediate mu-service does decode %20 to + 
+- intermediate mu-service does decode %20 to +
+- http cache mangement interface
 
 
