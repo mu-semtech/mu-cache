@@ -10,7 +10,34 @@ var serverPort = process.env.PORT || 5000;
 var cache = cacheUtils.initCache();
 var proxy = httpProxy.createProxyServer({});
 var server = http.createServer(function(request, response) {
-  
+
+  if (isKeysRoute(request)) {
+
+    var keys;
+    try {
+      keys = parseKeysQuery(unescape(request.url));
+    } catch (e) {
+      return writeResponseJSON(response, 400, {
+        "msg":"Errors parsing keys"
+      });
+    }
+
+    if (request.method === "DELETE") {
+      cache = cacheUtils.flush(cache, keys);
+      writeResponseJSON(response, 200, {});
+      return;
+    }
+
+    if (request.method === "GET") {
+      var entries = (keys.length == 0 && cache) || cacheUtils.filter(cache, keys);
+      writeResponseJSON(response, 200, entries);
+      return;
+    }
+
+    writeResponseJSON(response, 405, {});
+    return;
+  }
+
   if (request.method !== "GET") {
     proxy.web(request, response, {
       target: cacheBackend
@@ -64,6 +91,16 @@ server.listen(serverPort);
 /********************************************************************************************************************
  * helpers
  ********************************************************************************************************************/
+function parseKeysQuery(query) {
+  var data = query.split('/keys/');
+  return (data.length == 2 && !_.every(data, _.isEmpty)) ? utils.arrify(JSON.parse(data[1])) : [];
+}
+
+function isKeysRoute(request) {
+  //matches /keys /keys/ /keys/something
+  return (unescape(request.url).match(/^\/keys\/?$|^\/keys\/[\S\s]*$/) && true) || false;
+}
+
 function stripBackendResponse(response) {
   return new Promise(function(resolve, reject) {
     var keys = utils.arrify(JSON.parse(response.headers["cache-keys"]));
@@ -100,7 +137,7 @@ function writeResponse(response, statusCode, body, headers) {
 
 function setCacheBackend(env){
   if(!env.CACHE_BACKEND){
-    throw("Please provide url to environment variable CACHE_BACKEND!")
+    throw("Please provide url to  environment variable CACHE_BACKEND!")
   }
   return env.CACHE_BACKEND;
 }
