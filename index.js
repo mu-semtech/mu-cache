@@ -56,10 +56,6 @@ var server = http.createServer(function(request, response) {
 //intercept and eventually manipulate response from target
 proxy.on("proxyRes", function(backendResponse, request, response) {
   
-  if(backendResponse.statusCode !== 200){
-    return;
-  }
-
   if (backendResponse.headers["clear-keys"]) {
     cache = cacheUtils.flush(cache, utils.arrify(JSON.parse(backendResponse.headers["clear-keys"]))); //ok to crash?
   }
