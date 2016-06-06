@@ -1,7 +1,7 @@
 mu-cache
 ================
 
-The mu-cache provides a distributed caching proxy for JSONAPI like resources.  The service can be placed in front of microservices which understand the cache’s primitives.  Microservices can update the mu-cache within their standard request-response cycles or by making REST calls on the mu-cache.
+The mu-cache provides a distributed caching proxy for JSONAPI like resources.  The service can be placed in front of any microservice which understand the cache’s primitives.  Microservices can update the mu-cache within their standard request-response cycles or by making REST calls on the mu-cache (REST calls are still under development).
 
 Motivation
 ----------
@@ -9,7 +9,7 @@ Within the mu.semte.ch framework, all state is stored in the triplestore.  This 
 
 Detecting when to clear the cache on a URL-basis is near-impossible, given that the set of possible calls in a JSONAPI endpoint is non-exhaustive.  In some configurations, the set of URLs which yield a particular resource may be infinite.  Primitives for managing such a cache are needed.
 
-Managing the cache within a specific microservice is probably not wanted as the microservice would need to communicate with its peers to indicate which items are in the cache.  (Eg: if we have two mu-cl-resources containers using the same image, we could load-balance between these instances.  When one of these detects an update to the model, the other would need to clear its cache also.  A microservice which tackles caching is a primitive which could be of great help in this idiomatic situation.)
+Managing the cache within a specific microservice is probably not wanted as the microservice would need to communicate with its peers to indicate which items are in the cache.  Eg: if we have two mu-cl-resources containers using the same image, we could load-balance between these instances.  When one of these detects an update to the model, the other would need to clear its cache also.  A microservice which tackles caching is a primitive which could be of great help in this idiomatic situation.
 
 
 API
@@ -17,7 +17,7 @@ API
 The mu-cache API can be wrapped in two sections: the header-based request-response, and the direct API calls.
 
 ### Request-response
-This form is used to update the cache when a user requests a page.  For now, the cache only needs to care about GET requests.
+This flow is used when a proxy request is received.  It can use or update the cache upon a page request.
 
 Logical steps:
 Request for “/foo” enters cache
