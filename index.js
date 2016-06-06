@@ -38,18 +38,11 @@ var server = http.createServer(function(request, response) {
     return;
   }
 
-  if (request.method !== "GET") {
-    proxy.web(request, response, {
-      target: cacheBackend
-    });
-    return;
-  }
-
   //try to hit the cache
-  var cacheEntry = cacheUtils.hit(cache, request.url);
+  var cacheEntry = cacheUtils.hit(cache, request.method, request.url);
 
   if (utils.existy(cacheEntry)) {
-    logger.info("Cache hit for " + request.url);
+    logger.info("Cache hit for " + request.method + " " + request.url);
     writeResponse(response, 200, cacheEntry.data, cacheEntry.headers);
     return;
   }
@@ -72,10 +65,9 @@ proxy.on("proxyRes", function(backendResponse, request, response) {
   }
 
   if (backendResponse.headers["cache-keys"]) {
-    stripBackendResponse(backendResponse)
-    .then(function(stripped) {
-        var entry = cacheUtils.createEntry(request.url, stripped.keys, stripped.headers, stripped.data);
-        cache = cacheUtils.update(cache, entry);
+    stripBackendResponse(backendResponse).then(function(stripped) {
+      var entry = cacheUtils.createEntry(request.method, request.url, stripped.keys, stripped.headers, stripped.data);
+      cache = cacheUtils.update(cache, entry);
     });
   }
 });

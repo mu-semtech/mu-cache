@@ -1,14 +1,20 @@
 var _ = require("underscore");
 var utils = require("./utils");
 
+// Generates a key which can be used in a hash to find the
+// combination of the method and the uri.
+function buildRequestKey(method, uri) {
+  return method + " " + uri;
+}
+
 var cacheUtils = {
   initCache: function(){
     return {};
   },
 
-  createEntry: function(uri, keys, headers, data) {
+  createEntry: function(method, uri, keys, headers, data) {
     return {
-      uri: uri,
+      requestKey: buildRequestKey(method, uri),
       keys: keys,
       headers: headers,
       data: data
@@ -16,12 +22,13 @@ var cacheUtils = {
   },
 
   update: function(cache, cacheEntry) {
-    cache[cacheEntry.uri] = cacheEntry;
+    cache[cacheEntry.requestKey] = cacheEntry;
     return cache;
   },
 
-  hit: function(cache, query) {
-    return cache[query];
+  hit: function(cache, method, uri) {
+    var requestKey = buildRequestKey(method, uri);
+    return cache[requestKey];
   },
 
   flush: function(cache, keys) {
