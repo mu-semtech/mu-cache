@@ -23,7 +23,7 @@ var server = http.createServer(function(request, response) {
     }
 
     if (request.method === "DELETE") {
-      cache = cacheUtils.flush(cache, keys);
+      cacheUtils.flush(cache, keys);
       writeResponseJSON(response, 200, {});
       return;
     }
@@ -38,7 +38,9 @@ var server = http.createServer(function(request, response) {
     return;
   }
 
-  //try to hit the cache
+  // Try to hit the cache
+  // logger.info("Trying to hit cache with " + request.method + " " + request.url);
+  // logger.info("Current cache: " + JSON.stringify( cache ));
   var cacheEntry = cacheUtils.hit(cache, request.method, request.url);
 
   if (utils.existy(cacheEntry)) {
@@ -47,23 +49,34 @@ var server = http.createServer(function(request, response) {
     return;
   }
 
-  //forward request to proxy
+  // Forward request to proxy
   proxy.web(request, response, {
     target: cacheBackend
   });
 });
 
-//intercept and eventually manipulate response from target
+var normalizeKeys = function(headerContent){
+  return JSON.parse(headerContent).map( function(k) { return cacheUtils.objectCacheKey( k ) } );
+}
+
+// Intercept and manipulate response from target
 proxy.on("proxyRes", function(backendResponse, request, response) {
   
   if (backendResponse.headers["clear-keys"]) {
-    cache = cacheUtils.flush(cache, utils.arrify(JSON.parse(backendResponse.headers["clear-keys"]))); //ok to crash?
+    var clearKeys = normalizeKeys( backendResponse.headers["clear-keys"] );
+    // logger.info("Requested keys to clear: " + JSON.stringify( backendResponse.headers["clear-keys"] ) );
+    // logger.info("Clearing keys " + JSON.stringify( clearKeys ));
+    cacheUtils.flush(cache, utils.arrify(clearKeys), logger); //ok to crash?
+    // logger.info("Resulting cache " + JSON.stringify(cache));
   }
 
   if (backendResponse.headers["cache-keys"]) {
+    var cacheKeys = normalizeKeys( backendResponse.headers["cache-keys"] );
+    // logger.info("Caching keys " + JSON.stringify( cacheKeys ));
     stripBackendResponse(backendResponse).then(function(stripped) {
       var entry = cacheUtils.createEntry(request.method, request.url, stripped.keys, stripped.headers, stripped.data);
-      cache = cacheUtils.update(cache, entry);
+      cacheUtils.update(cache, entry);
+      // logger.info("New cache " + JSON.stringify(cache));
     });
   }
 });
