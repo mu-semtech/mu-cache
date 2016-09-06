@@ -27,7 +27,7 @@ defmodule UsePlugProxy do
     send_resp( conn, 200, "debugging is a go" )
   end
 
-  get "/*path" do
+  match "/*path" do
     full_path = Enum.reduce( path, "", fn (a, b) -> a <> "/" <> b end )
     opts = PlugProxy.init url: "http://localhost:8080/" <> full_path
     cache = Cache.find_cache( conn.method, full_path )
@@ -40,8 +40,8 @@ defmodule UsePlugProxy do
       processors = %{ header_processor: fn (headers, state) ->
                       IO.puts "Received header:"
                       IO.inspect headers
-                      { headers, cache_keys } = extract_header( headers, "Cache-Keys" )
-                      { headers, clear_keys } = extract_header( headers, "Clear-Keys" )
+                      { headers, cache_keys } = extract_json_header( headers, "Cache-Keys" )
+                      { headers, clear_keys } = extract_json_header( headers, "Clear-Keys" )
                       { headers, %{ state |
                                     headers: headers,
                                     cache_keys: cache_keys,
@@ -75,11 +75,12 @@ defmodule UsePlugProxy do
     end
   end
 
-  defp extract_header( headers, header_name ) do
+  defp extract_json_header( headers, header_name ) do
     case List.keyfind( headers, header_name, 0 ) do
       { ^header_name, keys } ->
         new_headers = List.keydelete( headers, header_name, 0 )
-        { new_headers, keys }
+
+        { new_headers, Poison.decode!(keys) }
       _ ->
         { headers, [] }
     end
