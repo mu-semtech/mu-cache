@@ -4,8 +4,8 @@ defmodule UsePlugProxy do
   alias UsePlugProxy.Cache
 
   def start(argv) do
-    # port = 80
-    port = 8888
+    port = 80
+    # port = 8888
     IO.puts "Starting Plug with Cowboy on port #{port}"
     Plug.Adapters.Cowboy.http __MODULE__, [], port: port
     UsePlugProxy.Cache.start_link()
@@ -18,18 +18,13 @@ defmodule UsePlugProxy do
   plug :match
   plug :dispatch
 
-  get "/baloo" do
-    opts = PlugProxy.init( url: "http://localhost:8888/debug" )
-    PlugProxy.call( conn, opts )
-  end
-
-  get "/debug" do
+  get "/cachecanhasresponse" do
     send_resp( conn, 200, "debugging is a go" )
   end
 
   match "/*path" do
     full_path = Enum.reduce( path, "", fn (a, b) -> a <> "/" <> b end )
-    opts = PlugProxy.init url: "http://localhost:8080/" <> full_path
+    opts = PlugProxy.init url: "http://backend/" <> full_path
     cache = Cache.find_cache( conn.method, full_path )
 
     if cache do
