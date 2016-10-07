@@ -30,7 +30,7 @@ defmodule UsePlugProxy do
     if cache do
       IO.puts "CACHE HIT!"
       merge_resp_headers( conn, cache.headers )
-      |> send_resp( conn, 200, cache.body )
+      |> send_resp( 200, cache.body )
     else
       IO.puts "CACHE MISS!"
       processors = %{ header_processor: fn (headers, state) ->
