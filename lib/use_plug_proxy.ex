@@ -39,8 +39,8 @@ defmodule UsePlugProxy do
     else
       IO.puts "CACHE MISS!"
       processors = %{ header_processor: fn (headers, state) ->
-                      IO.puts "Received header:"
-                      IO.inspect headers
+                      # IO.puts "Received header:"
+                      # IO.inspect headers
                       { headers, cache_keys } = extract_json_header( headers, "Cache-Keys" )
                       { headers, clear_keys } = extract_json_header( headers, "Clear-Keys" )
                       { headers, %{ state |
@@ -49,21 +49,20 @@ defmodule UsePlugProxy do
                                     clear_keys: clear_keys } }
                     end,
                       chunk_processor: fn (chunk, state) ->
-                        IO.puts "Received chunk:"
-                        IO.inspect chunk
+                        # IO.puts "Received chunk:"
+                        # IO.inspect chunk
                         { chunk, %{ state | body: state.body <> chunk } }
                       end,
                       body_processor: fn (body, state) ->
-                        IO.puts "Received body:"
-                        IO.inspect body
+                        # IO.puts "Received body:"
+                        # IO.inspect body
                         { body, %{ state | body: state.body <> body } }
                       end,
                       finish_hook: fn (state) ->
-                        IO.puts "Fully received body"
-                        IO.puts state.body
-                        IO.puts "Current state:"
-                        IO.inspect state
-
+                        # IO.puts "Fully received body"
+                        # IO.puts state.body
+                        # IO.puts "Current state:"
+                        # IO.inspect state
                         Cache.store( conn.method, full_path, state )
                         { true, state }
                       end,
@@ -72,7 +71,7 @@ defmodule UsePlugProxy do
       conn
       |> Map.put( :processors, processors )
       |> PlugProxy.call( opts )
-      |> IO.inspect
+      # |> IO.inspect
     end
   end
 
