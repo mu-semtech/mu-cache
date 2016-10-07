@@ -32,7 +32,7 @@ defmodule UsePlugProxy.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [{:plug_proxy, git: "file:///home/madnificent/code/elixir/plug-proxy/"},
+    [{:plug_proxy, git: "https://github.com/madnificent/plug-proxy.git"},
      {:poison, "~> 2.0"}]
   end
 end
