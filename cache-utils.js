@@ -79,11 +79,14 @@ var cacheUtils = {
         // remove the entry
         delete cache.requests[entry];
         // remove the keys of this entry from the interested keys
-        // logger.info("Removing cached entry: " + JSON.stringify(currentEntry));
-        currentEntry.keys.forEach( function( keyToRemove ) {
-          // logger.info("Removing cached content: " + JSON.stringify(keyToRemove));
-          delete cache.keys[keyToRemove][currentEntry.requestKey];
-        } );
+        // but only if we are interested in preserving memory
+        if (process.env.PRESERVE_MEMORY) {
+          // logger.info("Removing cached entry: " + JSON.stringify(currentEntry));
+          currentEntry.keys.forEach( function( keyToRemove ) {
+            // logger.info("Removing cached content: " + JSON.stringify(keyToRemove));
+            delete cache.keys[keyToRemove][currentEntry.requestKey];
+          } );
+        }
       } );
       delete cache.keys[key];
     } );
