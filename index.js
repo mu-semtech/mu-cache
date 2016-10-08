@@ -36,6 +36,16 @@ var server = http.createServer(function(request, response) {
 
     writeResponseJSON(response, 405, {});
     return;
+  } else if (request.method === "POST" && request.url == "/clear") {
+    cacheUtils.clear(cache);
+    logger.info("Cleared cache");
+    writeResponseJSON(response, 200, {"status": "ok"});
+    return;
+  } else if (request.method === "GET" && request.url == "/size") {
+    size = cacheUtils.size(cache);
+    logger.info("Cleared cache");
+    writeResponseJSON(response, 200, size);
+    return;
   }
 
   // Try to hit the cache

@@ -30,6 +30,16 @@ var cacheUtils = {
     return { requests: {}, keys: {} };
   },
 
+  clear: function( cache ) {
+    cache.requests = {};
+    cache.keys = {};
+  },
+
+  size: function( cache ) {
+    return { requests: Object.keys(cache.requests).length,
+             keys: Object.keys(cache.keys).length };
+  },
+
   objectCacheKey: function( source ) {
     return JSON.stringify( sortObject( source ) );
   },
