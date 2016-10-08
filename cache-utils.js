@@ -12,7 +12,11 @@ function sortObject( source ) {
     return source.map( function(item) { return sortObject(item); } );
   } else if( source instanceof Object ){
     var sortedObject = {};
-    Object.keys(source || {}).sort().map( function(key) {
+    // TODO sorting keys does not matter (spec does not guarantee order any way).
+    // removed for performance.
+    // should think of different approach...
+    // e.g. limited set of keys, getting them in order and appending to string
+    Object.keys(source).map( function(key) {
       sortedObject[key] = sortObject(source[key]);
     } );
     return sortedObject;
