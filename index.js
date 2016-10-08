@@ -72,24 +72,26 @@ var normalizeKeys = function(headerContent){
 
 // Intercept and manipulate response from target
 proxy.on("proxyRes", function(backendResponse, request, response) {
-  
-  if (backendResponse.headers["clear-keys"]) {
-    var clearKeys = normalizeKeys( backendResponse.headers["clear-keys"] );
-    // logger.info("Requested keys to clear: " + JSON.stringify( backendResponse.headers["clear-keys"] ) );
-    // logger.info("Clearing keys " + JSON.stringify( clearKeys ));
-    cacheUtils.flush(cache, utils.arrify(clearKeys), logger); //ok to crash?
-    // logger.info("Resulting cache " + JSON.stringify(cache));
-  }
+  cleared = backendResponse.headers["clear-keys"];
+  cached = backendResponse.headers["cache-keys"];
+  //logger.info("Cached: "+cached+"\nCleared: "+cleared)
+  stripBackendResponse(backendResponse).then(function(stripped) {
+    if (cleared) {
+      var clearKeys = normalizeKeys( cleared );
+      // logger.info("Requested keys to clear: " + JSON.stringify( backendResponse.headers["clear-keys"] ) );
+      //logger.info("Clearing keys " + JSON.stringify( clearKeys ));
+      cacheUtils.flush(cache, utils.arrify(clearKeys), logger); //ok to crash?
+      //logger.info("Resulting cache " + JSON.stringify(cache));
+    }
 
-  if (backendResponse.headers["cache-keys"]) {
-    var cacheKeys = normalizeKeys( backendResponse.headers["cache-keys"] );
-    // logger.info("Caching keys " + JSON.stringify( cacheKeys ));
-    stripBackendResponse(backendResponse).then(function(stripped) {
-      var entry = cacheUtils.createEntry(request.method, request.url, stripped.keys, stripped.headers, stripped.data);
+    if (cached) {
+      var cacheKeys = utils.arrify(JSON.parse(cached));
+      //logger.info("Caching keys " + JSON.stringify( cacheKeys ));
+      var entry = cacheUtils.createEntry(request.method, request.url, cacheKeys, stripped.headers, stripped.data);
       cacheUtils.update(cache, entry);
-      // logger.info("New cache " + JSON.stringify(cache));
-    });
-  }
+      //logger.info("New cache " + JSON.stringify(cache));
+    }
+  });
 });
 
 proxy.on("error", function(error, request, response) {
@@ -115,7 +117,6 @@ function isKeysRoute(request) {
 
 function stripBackendResponse(response) {
   return new Promise(function(resolve, reject) {
-    var keys = utils.arrify(JSON.parse(response.headers["cache-keys"]));
     delete response.headers["cache-keys"];
     delete response.headers["clear-keys"];
 
@@ -128,8 +129,7 @@ function stripBackendResponse(response) {
     response.on("end", function() {
       resolve({
         "data": data,
-        "headers": response.headers, 
-        "keys":  keys
+        "headers": response.headers
       });
     });
   });
