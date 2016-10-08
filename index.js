@@ -59,6 +59,7 @@ var server = http.createServer(function(request, response) {
     return;
   }
 
+  logger.info("Cache miss for " + request.method + " " + request.url);
   // Forward request to proxy
   proxy.web(request, response, {
     target: cacheBackend
