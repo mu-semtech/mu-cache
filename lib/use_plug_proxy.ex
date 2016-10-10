@@ -23,8 +23,8 @@ defmodule UsePlugProxy do
   end
 
   match "/*path" do
-    full_path = Enum.reduce( path, "", fn (a, b) -> a <> "/" <> b end )
     opts = PlugProxy.init url: "http://backend/" <> full_path
+    full_path = Enum.reduce( path, "", fn (a, b) -> b <> "/" <> a end )
     cache = Cache.find_cache( conn.method, full_path )
 
     if cache do
