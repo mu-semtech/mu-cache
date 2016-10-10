@@ -23,21 +23,27 @@ defmodule UsePlugProxy do
   end
 
   match "/*path" do
-    opts = PlugProxy.init url: "http://backend/" <> full_path
     full_path = Enum.reduce( path, "", fn (a, b) -> b <> "/" <> a end )
     cache = Cache.find_cache( conn.method, full_path )
 
     if cache do
       IO.puts "CACHE HIT!"
-      merge_resp_headers( conn, cache.headers )
+
+      conn
+      |> merge_resp_headers( cache.headers )
       |> send_resp( 200, cache.body )
     else
       IO.puts "CACHE MISS!"
+      url = "http://backend/" <> full_path
+      IO.puts "Target Proxy URL is " <> url
+      opts = PlugProxy.init url: url
       processors = %{ header_processor: fn (headers, state) ->
                       # IO.puts "Received header:"
                       # IO.inspect headers
-                      { headers, cache_keys } = extract_json_header( headers, "Cache-Keys" )
-                      { headers, clear_keys } = extract_json_header( headers, "Clear-Keys" )
+                      headers = downcase_headers( headers )
+
+                      { headers, cache_keys } = extract_json_header( headers, "cache-keys" )
+                      { headers, clear_keys } = extract_json_header( headers, "clear-keys" )
                       { headers, %{ state |
                                     headers: headers,
                                     cache_keys: cache_keys,
@@ -74,10 +80,15 @@ defmodule UsePlugProxy do
     case List.keyfind( headers, header_name, 0 ) do
       { ^header_name, keys } ->
         new_headers = List.keydelete( headers, header_name, 0 )
-
         { new_headers, Poison.decode!(keys) }
       _ ->
         { headers, [] }
+    end
+  end
+
+  defp downcase_headers( headers ) do
+    Enum.map headers, fn { header, content } ->
+      { String.downcase(header), content }
     end
   end
 end
