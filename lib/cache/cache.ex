@@ -40,8 +40,8 @@ defmodule UsePlugProxy.Cache do
     request_key = { method, location }
     %{ cache_keys: cache_keys, clear_keys: clear_keys } = response
 
-    IO.inspect { :cache_keys, cache_keys }
-    IO.inspect { :clear_keys, clear_keys }
+    # IO.inspect { :cache_keys, cache_keys }
+    # IO.inspect { :clear_keys, clear_keys }
 
     state = state
     |> clear_keys!( clear_keys )
@@ -50,12 +50,12 @@ defmodule UsePlugProxy.Cache do
     if cache_keys != [] do
       cache = Map.put( state.cache, request_key, response )
       state = Map.put( state, :cache, cache )
-      IO.puts "Resulting state:"
-      IO.inspect( state )
+      # IO.puts "Resulting state:"
+      # IO.inspect( state )
       { :reply, :ok, state }
     else
-      IO.puts "Resulting state:"
-      IO.inspect( state )
+      # IO.puts "Resulting state:"
+      # IO.inspect( state )
       { :reply, :ok, state }
     end
   end
@@ -65,14 +65,14 @@ defmodule UsePlugProxy.Cache do
   end
 
   defp clear_keys!( state, clear_keys ) do
-    IO.puts "Clearing keys: "
-    IO.inspect clear_keys
+    # IO.puts "Clearing keys: "
+    # IO.inspect clear_keys
     Enum.reduce clear_keys, state, fn ( clear_key, state ) ->
-      IO.puts "Clearing one key:"
-      IO.inspect clear_key
+      # IO.puts "Clearing one key:"
+      # IO.inspect clear_key
       key_cache = state.caches_by_key
-      IO.puts "Caches by key:"
-      IO.inspect key_cache
+      # IO.puts "Caches by key:"
+      # IO.inspect key_cache
       if Map.has_key? key_cache, clear_key do
         request_keys = key_cache[clear_key]
         state = Enum.reduce( request_keys, state, &(clear_cache_by_key! &2, &1) ) # something goes wrong here
@@ -85,9 +85,9 @@ defmodule UsePlugProxy.Cache do
 
   defp clear_cache_by_key!( state, request_key ) do
     key_cache = state.caches_by_key
-    IO.puts "Clearing cache by key"
-    IO.inspect {:request_key, request_key}
-    IO.inspect {:cache, state.cache}
+    # IO.puts "Clearing cache by key"
+    # IO.inspect {:request_key, request_key}
+    # IO.inspect {:cache, state.cache}
     request_object = state.cache[request_key]
     %{ cache_keys: cache_keys } = request_object
 
@@ -103,32 +103,32 @@ defmodule UsePlugProxy.Cache do
 
   defp cache_keys!( state, cache_keys, request_key ) do
     key_cache = state.caches_by_key
-    IO.puts "key_cache:"
-    IO.inspect key_cache
-    IO.puts "Caching key:"
-    IO.inspect cache_keys
-    IO.puts "Request key:"
-    IO.inspect request_key
+    # IO.puts "key_cache:"
+    # IO.inspect key_cache
+    # IO.puts "Caching key:"
+    # IO.inspect cache_keys
+    # IO.puts "Request key:"
+    # IO.inspect request_key
     key_cache = Enum.reduce cache_keys, key_cache, fn( cache_key, key_cache ) ->
       if Map.has_key? key_cache, cache_key do
         current_list = Map.get key_cache, cache_key
         if Enum.member? current_list, request_key do
           # We are already in the list
-          IO.puts "Don't cache key duplicate:"
-          IO.inspect cache_key
-          IO.inspect current_list
+          # IO.puts "Don't cache key duplicate:"
+          # IO.inspect cache_key
+          # IO.inspect current_list
           key_cache
         else
           # We have a list to append to
-          IO.puts "Append cache key to list:"
-          IO.inspect cache_key
-          IO.inspect current_list
+          # IO.puts "Append cache key to list:"
+          # IO.inspect cache_key
+          # IO.inspect current_list
           Map.put key_cache, cache_key, [ request_key |  current_list ]
         end
       else
         # The cache key was unkown
-          IO.puts "Create new cache list:"
-          IO.inspect cache_key
+          # IO.puts "Create new cache list:"
+          # IO.inspect cache_key
         Map.put key_cache, cache_key, [request_key]
       end
     end
