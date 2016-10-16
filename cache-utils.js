@@ -27,12 +27,13 @@ function sortObject( source ) {
 
 var cacheUtils = {
   initCache: function(){
-    return { requests: {}, keys: {} };
+    return { requests: {}, keys: {}, cleanupcount: {} };
   },
 
   clear: function( cache ) {
     cache.requests = {};
     cache.keys = {};
+    cache.cleanupcount = {};
   },
 
   size: function( cache ) {
@@ -70,26 +71,37 @@ var cacheUtils = {
   },
 
   flush: function(cache, keys, logger) {
+    var self = this;
     // we clear the keys for each key using the index
     keys.forEach( function(key) {
       // logger.info("Flushing key: " + JSON.stringify(key));
       Object.keys( cache.keys[key] || {} ).forEach( function( entry ) {
-        // logger.info("Flushing entry: " + JSON.stringify(entry));
-        var currentEntry = cache.requests[entry];
-        // remove the entry
-        delete cache.requests[entry];
-        // remove the keys of this entry from the interested keys
-        // but only if we are interested in preserving memory
-        if (process.env.PRESERVE_MEMORY) {
-          // logger.info("Removing cached entry: " + JSON.stringify(currentEntry));
-          currentEntry.keys.forEach( function( keyToRemove ) {
-            // logger.info("Removing cached content: " + JSON.stringify(keyToRemove));
-            delete cache.keys[keyToRemove][currentEntry.requestKey];
-          } );
-        }
+        self.cleanupRequestKeys(cache, entry, logger);
       } );
       delete cache.keys[key];
     } );
+  },
+
+  // remove the keys of this entry from the interested keys
+  // but only if we are interested in preserving memory
+  cleanupRequestKeys: function(cache, entry, logger) {
+    var currentCleanCount = (cache.cleanupcount[entry] || 0);
+    var cleanCount = currentCleanCount + 1;
+    cache.cleanupcount[entry] = cleanCount;
+
+    var currentEntry = cache.requests[entry];
+    // remove the entry
+    delete cache.requests[entry];
+
+    if (process.env.SLOPPINESS_RATING > 0 && process.env.SLOPPINESS_RATING <= cleanCount) {
+      cache.cleanupcount[entry] = 0;
+
+      // logger.info("Removing cached entry: " + JSON.stringify(currentEntry));
+      currentEntry.keys.forEach( function( keyToRemove ) {
+        // logger.info("Removing cached content: " + JSON.stringify(keyToRemove));
+        delete cache.keys[keyToRemove][currentEntry.requestKey];
+      } );
+    }
   },
 
   filter: function(cache, keys){

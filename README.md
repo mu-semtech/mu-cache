@@ -44,7 +44,7 @@ The following environment variables can be used to tweak the behavior of the cac
 - PORT: the port to host the cache service on (default: 5000)
 - SKIP_KEY_SORTING: do not sort keys of the cache-key objects sent from the cached service, i.e. assuming the service always sends back the keys of such cache-key objects in the same order.
 *Note: setting this to true is dangerous and will result in an invalid cache if the cached service ever sends back a single cache-key object in a different order!* (default: false)
-- PRESERVE_MEMORY: clear the request keys that depend on a certain cache-key when the cache key is invalidated. This frees up memory but makes clearing cache instances more costly. It is recommended to disable this if there are many requests that can depend on a single cache key. (default: false)
+- SLOPPINESS_RATING: integer representing how sloppy the cache is. The cache clears the request keys that depend on a certain cache-key only after the cache key is invalidated this amount of times. This action frees up memory but makes clearing cache instances more costly. It is recommended to disable this (value of <= 0) or set it to a high value if there are many requests that can depend on a single cache key. (default: -1)
 
 TODO
 ----
