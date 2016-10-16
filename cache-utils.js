@@ -12,7 +12,11 @@ function sortObject( source ) {
     return source.map( function(item) { return sortObject(item); } );
   } else if( source instanceof Object ){
     var sortedObject = {};
-    Object.keys(source || {}).sort().map( function(key) {
+    var keys = Object.keys(source || {});
+    if(process.env.SKIP_KEY_SORTING) {
+        keys = keys.sort();
+    }
+    keys.map( function(key) {
       sortedObject[key] = sortObject(source[key]);
     } );
     return sortedObject;
