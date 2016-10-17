@@ -27,13 +27,12 @@ function sortObject( source ) {
 
 var cacheUtils = {
   initCache: function(){
-    return { requests: {}, keys: {}, cleanupcount: {} };
+    return { requests: {}, keys: {} };
   },
 
   clear: function( cache ) {
     cache.requests = {};
     cache.keys = {};
-    cache.cleanupcount = {};
   },
 
   size: function( cache ) {
@@ -85,17 +84,13 @@ var cacheUtils = {
   // remove the keys of this entry from the interested keys
   // but only if we are interested in preserving memory
   cleanupRequestKeys: function(cache, entry, logger) {
-    var currentCleanCount = (cache.cleanupcount[entry] || 0);
-    var cleanCount = currentCleanCount + 1;
-    cache.cleanupcount[entry] = cleanCount;
-
     var currentEntry = cache.requests[entry];
     // remove the entry
     delete cache.requests[entry];
 
-    //logger.info("clear cache? " + process.env.SLOPPINESS_RATING + " clean: "+cleanCount);
-    if ((typeof process.env.SLOPPINESS_RATING === 'undefined') || (process.env.SLOPPINESS_RATING > 0 && process.env.SLOPPINESS_RATING <= cleanCount)) {
-      cache.cleanupcount[entry] = 0;
+    var chance = Math.random();
+    //logger.info("clear cache? " + process.env.SLOPPINESS_RATING + " clean: "+chance);
+    if ((typeof process.env.SLOPPINESS_RATING === 'undefined') || (chance > process.env.SLOPPINESS_RATING)) {
 
       //logger.info("Removing cached entry: " + JSON.stringify(currentEntry));
       currentEntry.keys.forEach( function( keyToRemove ) {
