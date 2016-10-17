@@ -93,10 +93,11 @@ var cacheUtils = {
     // remove the entry
     delete cache.requests[entry];
 
-    if (process.env.SLOPPINESS_RATING > 0 && process.env.SLOPPINESS_RATING <= cleanCount) {
+    //logger.info("clear cache? " + process.env.SLOPPINESS_RATING + " clean: "+cleanCount);
+    if ((typeof process.env.SLOPPINESS_RATING === 'undefined') || (process.env.SLOPPINESS_RATING > 0 && process.env.SLOPPINESS_RATING <= cleanCount)) {
       cache.cleanupcount[entry] = 0;
 
-      // logger.info("Removing cached entry: " + JSON.stringify(currentEntry));
+      //logger.info("Removing cached entry: " + JSON.stringify(currentEntry));
       currentEntry.keys.forEach( function( keyToRemove ) {
         // logger.info("Removing cached content: " + JSON.stringify(keyToRemove));
         delete cache.keys[keyToRemove][currentEntry.requestKey];
