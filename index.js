@@ -1,3 +1,9 @@
+// monkey patch http parser so you can have headers longer than 80k
+// see http://stackoverflow.com/questions/24167656/nodejs-max-header-size-in-http-request
+// in this case, headers this large can happen because for instance the resources
+// service can invalidate a large amount of cache keys
+process.binding('http_parser').HTTPParser = require('http-parser-js').HTTPParser;
+
 var _ = require("underscore");
 var utils = require("./utils");
 var cacheUtils = require("./cache-utils");
