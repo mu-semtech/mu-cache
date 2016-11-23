@@ -3,6 +3,8 @@
 // in this case, headers this large can happen because for instance the resources
 // service can invalidate a large amount of cache keys
 process.binding('http_parser').HTTPParser = require('http-parser-js').HTTPParser;
+var maxHeaderSize = process.env.MAX_HEADER_SIZE || 64 * 1024 * 1024; // 64MB instead of 80kb
+require('http-parser-js').HTTPParser.maxHeaderSize = maxHeaderSize;
 
 var _ = require("underscore");
 var utils = require("./utils");
