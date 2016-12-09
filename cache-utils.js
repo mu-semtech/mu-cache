@@ -53,14 +53,20 @@ var cacheUtils = {
     }
   },
 
-  update: function(cache, cacheEntry) {
+  update: function(cache, cacheEntry, logger) {
     cache.requests[cacheEntry.requestKey] = cacheEntry;
+    if(logger) {
+      logger.info("updating keys: " + JSON.stringify(cacheEntry.keys));
+    }
     cacheEntry.keys.forEach( function(key) {
       if( !cache.keys[key] ) {
         cache.keys[key] = { };
       }
       cache.keys[key][cacheEntry.requestKey] = true;
     });
+    if(logger) {
+      logger.info("done updating");
+    }
     return cache;
   },
 
@@ -72,13 +78,18 @@ var cacheUtils = {
   flush: function(cache, keys, logger) {
     var self = this;
     // we clear the keys for each key using the index
+    if(logger) {
+      logger.info("Flushing keys: " + JSON.stringify(keys));
+    }
     keys.forEach( function(key) {
-      // logger.info("Flushing key: " + JSON.stringify(key));
       Object.keys( cache.keys[key] || {} ).forEach( function( entry ) {
         self.cleanupRequestKeys(cache, entry, logger);
       } );
       delete cache.keys[key];
     } );
+    if(logger) {
+      logger.info("done flushing");
+    }
   },
 
   // remove the keys of this entry from the interested keys

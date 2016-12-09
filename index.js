@@ -31,7 +31,7 @@ var server = http.createServer(function(request, response) {
     }
 
     if (request.method === "DELETE") {
-      cacheUtils.flush(cache, keys);
+      cacheUtils.flush(cache, keys, logger);
       writeResponseJSON(response, 200, {});
       return;
     }
@@ -74,21 +74,38 @@ var server = http.createServer(function(request, response) {
   });
 });
 
+// Add error message on caught exception
+var doProxy = function(event, handler) {
+  try {
+    proxy.on(event,handler);
+  } catch (e) {
+    var message = e;
+    if(message && message.message) {
+      message = message.message;
+    }
+    logger.error(message);
+  }
+};
+
 var normalizeKeys = function(headerContent){
   return JSON.parse(headerContent).map( function(k) { return cacheUtils.objectCacheKey( k ) } );
 }
 
 // Intercept and manipulate response from target
-proxy.on("proxyRes", function(backendResponse, request, response) {
+doProxy("proxyRes", function(backendResponse, request, response) {
   cleared = backendResponse.headers["clear-keys"];
   cached = backendResponse.headers["cache-keys"];
+  var debug = logger;
+  if(!process.env.DEBUG){
+    debug = null;
+  }
   //logger.info("Cached: "+cached+"\nCleared: "+cleared)
   stripBackendResponse(backendResponse).then(function(stripped) {
     if (cleared) {
       var clearKeys = normalizeKeys( cleared );
       // logger.info("Requested keys to clear: " + JSON.stringify( backendResponse.headers["clear-keys"] ) );
       //logger.info("Clearing keys " + JSON.stringify( clearKeys ));
-      cacheUtils.flush(cache, utils.arrify(clearKeys), logger); //ok to crash?
+      cacheUtils.flush(cache, utils.arrify(clearKeys), debug); //ok to crash?
       //logger.info("Resulting cache " + JSON.stringify(cache));
     }
 
@@ -96,13 +113,15 @@ proxy.on("proxyRes", function(backendResponse, request, response) {
       var cacheKeys = utils.arrify(JSON.parse(cached));
       //logger.info("Caching keys " + JSON.stringify( cacheKeys ));
       var entry = cacheUtils.createEntry(request.method, request.url, cacheKeys, stripped.headers, stripped.data);
-      cacheUtils.update(cache, entry);
+      cacheUtils.update(cache, entry,debug);
       //logger.info("New cache " + JSON.stringify(cache));
     }
+  }, function(error){
+    logger.error(error);
   });
 });
 
-proxy.on("error", function(error, request, response) {
+doProxy("error", function(error, request, response) {
   logger.error(error.message);
   writeResponseJSON(response, 502, {});
 });
