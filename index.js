@@ -13,7 +13,7 @@ var http = require("http");
 var logger = require('log4js').getLogger();
 var httpProxy = require("http-proxy");
 var cacheBackend = setCacheBackend(process.env);
-var serverPort = process.env.PORT || 5000;
+var serverPort = process.env.PORT || 80;
 
 var cache = cacheUtils.initCache();
 var proxy = httpProxy.createProxyServer({});
