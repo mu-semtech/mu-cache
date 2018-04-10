@@ -27,6 +27,13 @@ services:
 
 Update the dispatcher configuration to forward the appropriate requests to `cache` instead of `myservice`.
 
+Supported services
+------------------
+Services that currently support mu-cache:
+- [mu-cl-resources](https://github.com/mu-semtech/mu-cl-resources/blob/master/README.md#external-cache)
+
+These services may need to be configured in order to enable mu-cache support. Check their README for details.
+
 API
 ---
 The mu-cache API can be wrapped in two sections: the header-based request-response and the direct API calls.
