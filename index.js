@@ -20,7 +20,6 @@ var proxy = httpProxy.createProxyServer({});
 var server = http.createServer(function(request, response) {
 
   if (isKeysRoute(request)) {
-
     var keys;
     try {
       keys = parseKeysQuery(unescape(request.url));
@@ -32,28 +31,23 @@ var server = http.createServer(function(request, response) {
 
     if (request.method === "DELETE") {
       cacheUtils.flush(cache, keys, logger);
-      writeResponseJSON(response, 200, {});
-      return;
+      return writeResponseJSON(response, 200, {});
     }
 
     if (request.method === "GET") {
       var entries = (keys.length == 0 && cache) || cacheUtils.filter(cache, keys);
-      writeResponseJSON(response, 200, entries);
-      return;
+      return writeResponseJSON(response, 200, entries);
     }
 
-    writeResponseJSON(response, 405, {});
-    return;
+    return writeResponseJSON(response, 405, {});
   } else if (request.method === "POST" && request.url == "/clear") {
     cacheUtils.clear(cache);
     logger.info("Cleared cache");
-    writeResponseJSON(response, 200, {"status": "ok"});
-    return;
+    return writeResponseJSON(response, 200, {"status": "ok"});
   } else if (request.method === "GET" && request.url == "/size") {
-    size = cacheUtils.size(cache);
-    logger.info("Cleared cache");
-    writeResponseJSON(response, 200, size);
-    return;
+    var size = cacheUtils.size(cache);
+    logger.info("Counted cache");
+    return writeResponseJSON(response, 200, size);
   }
 
   // Try to hit the cache
@@ -63,13 +57,12 @@ var server = http.createServer(function(request, response) {
 
   if (utils.existy(cacheEntry)) {
     logger.info("Cache hit for " + request.method + " " + request.url);
-    writeResponse(response, 200, cacheEntry.data, cacheEntry.headers);
-    return;
+    return writeResponse(response, 200, cacheEntry.data, cacheEntry.headers);
   }
 
   logger.info("Cache miss for " + request.method + " " + request.url);
   // Forward request to proxy
-  proxy.web(request, response, {
+  return proxy.web(request, response, {
     target: cacheBackend
   });
 });
@@ -88,13 +81,13 @@ var doProxy = function(event, handler) {
 };
 
 var normalizeKeys = function(headerContent){
-  return JSON.parse(headerContent).map( function(k) { return cacheUtils.objectCacheKey( k ) } );
-}
+  return JSON.parse(headerContent).map( function(k) { return cacheUtils.objectCacheKey( k ); } );
+};
 
 // Intercept and manipulate response from target
 doProxy("proxyRes", function(backendResponse, request, response) {
-  cleared = backendResponse.headers["clear-keys"];
-  cached = backendResponse.headers["cache-keys"];
+  var cleared = backendResponse.headers["clear-keys"];
+  var cached = backendResponse.headers["cache-keys"];
   var debug = logger;
   if(!process.env.DEBUG){
     debug = null;
@@ -126,7 +119,7 @@ doProxy("error", function(error, request, response) {
   writeResponseJSON(response, 502, {});
 });
 
-logger.info("listening on port " + serverPort);
+logger.info("Listening on port " + serverPort);
 server.listen(serverPort);
 
 /********************************************************************************************************************
@@ -176,7 +169,7 @@ function writeResponse(response, statusCode, body, headers) {
 
 function setCacheBackend(env){
   if(!env.CACHE_BACKEND){
-    throw("Please provide url to  environment variable CACHE_BACKEND!")
+    throw("Please provide url to  environment variable CACHE_BACKEND!");
   }
   return env.CACHE_BACKEND;
 }

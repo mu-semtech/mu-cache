@@ -26,7 +26,7 @@ function sortObject( source ) {
 }
 
 var cacheUtils = {
-  initCache: function(){
+  initCache: function() {
     return { requests: {}, keys: {} };
   },
 
@@ -47,10 +47,10 @@ var cacheUtils = {
   createEntry: function(method, uri, keys, headers, data) {
     return {
       requestKey: buildRequestKey(method, uri),
-      keys: keys.map( function(k) { return cacheUtils.objectCacheKey( k ) } ),
+      keys: keys.map( function(k) { return cacheUtils.objectCacheKey( k ); } ),
       headers: headers,
       data: data
-    }
+    };
   },
 
   update: function(cache, cacheEntry, logger) {
@@ -116,7 +116,7 @@ var cacheUtils = {
 
     keys.forEach( function(key) {
       cache.keys[key].forEach( function(requestKey) {
-        returnedRequestKeys[requestKeys] = true;
+        returnedRequestKeys[requestKey] = true;
       } );
     } );
 
