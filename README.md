@@ -40,7 +40,7 @@ Request for “/foo” enters cache
 SETTINGS
 --------
 The following environment variables can be used to tweak the behavior of the cache:
-- CACHE_BACKEND: the url of the backend service to cache requests for (no default)
+- CACHE_BACKEND: the url of the backend service to cache requests for (default: `http://backend`)
 - PORT: the port to host the cache service on (default: 80)
 - SKIP_KEY_SORTING: do not sort keys of the cache-key objects sent from the cached service, i.e. assuming the service always sends back the keys of such cache-key objects in the same order.
 *Note: setting this to true is dangerous and will result in an invalid cache if the cached service ever sends back a single cache-key object in a different order!* (default: false)
@@ -50,5 +50,3 @@ TODO
 ----
 - review https://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
 - intermediate mu-service does decode %20 to +
-
-
