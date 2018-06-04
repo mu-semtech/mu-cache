@@ -82,8 +82,8 @@ var cacheUtils = {
       logger.info("Flushing keys: " + JSON.stringify(keys));
     }
     keys.forEach( function(key) {
-      Object.keys( cache.keys[key] || {} ).forEach( function( entry ) {
-        self.cleanupRequestKeys(cache, entry, logger);
+      Object.keys( cache.keys[key] || {} ).forEach( function( requestKey ) {
+        self.cleanupRequestKeys(cache, requestKey, logger);
       } );
       delete cache.keys[key];
     } );
@@ -94,10 +94,10 @@ var cacheUtils = {
 
   // remove the keys of this entry from the interested keys
   // but only if we are interested in preserving memory
-  cleanupRequestKeys: function(cache, entry, logger) {
-    var currentEntry = cache.requests[entry];
+  cleanupRequestKeys: function(cache, requestKey, logger) {
+    var currentEntry = cache.requests[requestKey];
     // remove the entry
-    delete cache.requests[entry];
+    delete cache.requests[requestKey];
 
     var chance = Math.random();
     //logger.info("clear cache? " + process.env.SLOPPINESS_RATING + " clean: "+chance);
