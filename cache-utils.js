@@ -13,7 +13,7 @@ function sortObject( source ) {
   } else if( source instanceof Object ){
     var sortedObject = {};
     var keys = Object.keys(source || {});
-    if(process.env.SKIP_KEY_SORTING) {
+    if(!process.env.SKIP_KEY_SORTING) {
         keys = keys.sort();
     }
     keys.map( function(key) {
