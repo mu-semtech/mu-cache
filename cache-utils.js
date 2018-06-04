@@ -44,25 +44,39 @@ var cacheUtils = {
     return JSON.stringify( sortObject( source ) );
   },
 
-  createEntry: function(method, uri, keys, headers, data) {
+  createEntry: function(request, keys, responseHeaders, responseBody) {
+    var group;
+    if (responseHeaders['mu-authorization-groups'])
+      group = responseHeaders['mu-authorization-groups']; // the backend returned auth groups
+    else if (request.headers['mu-authorization-groups'])
+      group = request.headers['mu-authorization-groups']; // fallback to the auth groups of the request
+    else
+      group = 'public'; // nothing known about auth groups
+
     return {
-      requestKey: buildRequestKey(method, uri),
+      requestKey: buildRequestKey(request.method, request.url),
+      group: group,
       keys: keys.map( function(k) { return cacheUtils.objectCacheKey( k ); } ),
-      headers: headers,
-      data: data
+      headers: responseHeaders,
+      data: responseBody
     };
   },
 
   update: function(cache, cacheEntry, logger) {
-    cache.requests[cacheEntry.requestKey] = cacheEntry;
+    if (!cache.requests[cacheEntry.requestKey])
+      cache.requests[cacheEntry.requestKey] = {};
+    cache.requests[cacheEntry.requestKey][cacheEntry.group] = cacheEntry;
+
     if(logger) {
       logger.info("updating keys: " + JSON.stringify(cacheEntry.keys));
     }
     cacheEntry.keys.forEach( function(key) {
-      if( !cache.keys[key] ) {
-        cache.keys[key] = { };
-      }
-      cache.keys[key][cacheEntry.requestKey] = true;
+      if(!cache.keys[key])
+        cache.keys[key] = {};
+      if(!cache.keys[key][cacheEntry.requestKey])
+        cache.keys[key][cacheEntry.requestKey] = {};
+
+      cache.keys[key][cacheEntry.requestKey][cacheEntry.group] = true;
     });
     if(logger) {
       logger.info("done updating");
@@ -70,9 +84,10 @@ var cacheUtils = {
     return cache;
   },
 
-  hit: function(cache, method, uri) {
+  hit: function(cache, method, uri, headers) {
     var requestKey = buildRequestKey(method, uri);
-    return cache.requests[requestKey];
+    var group = headers['mu-authorization-groups'] || 'public';
+    return cache.requests[requestKey] ? cache.requests[requestKey][group] : null;
   },
 
   flush: function(cache, keys, logger) {
@@ -83,8 +98,10 @@ var cacheUtils = {
     }
     keys.forEach( function(key) {
       Object.keys( cache.keys[key] || {} ).forEach( function( requestKey ) {
-        self.cleanupRequestKeys(cache, requestKey, logger);
-      } );
+        Object.keys( cache.keys[key][requestKey] || {} ).forEach( function( group ) {
+          self.cleanupRequestKeys(cache, requestKey, group, logger);
+        });
+      });
       delete cache.keys[key];
     } );
     if(logger) {
@@ -94,8 +111,8 @@ var cacheUtils = {
 
   // remove the keys of this entry from the interested keys
   // but only if we are interested in preserving memory
-  cleanupRequestKeys: function(cache, requestKey, logger) {
-    var currentEntry = cache.requests[requestKey];
+  cleanupRequestKeys: function(cache, requestKey, group, logger) {
+    var currentEntry = cache.requests[requestKey][group];
     // remove the entry
     delete cache.requests[requestKey];
 

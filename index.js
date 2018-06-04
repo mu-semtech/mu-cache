@@ -11,6 +11,7 @@ var utils = require("./utils");
 var cacheUtils = require("./cache-utils");
 var http = require("http");
 var logger = require('log4js').getLogger();
+logger.level = process.env.DEBUG ? 'debug' : 'info';
 var httpProxy = require("http-proxy");
 var cacheBackend = setCacheBackend(process.env);
 var serverPort = process.env.PORT || 80;
@@ -53,14 +54,15 @@ var server = http.createServer(function(request, response) {
   // Try to hit the cache
   // logger.info("Trying to hit cache with " + request.method + " " + request.url);
   // logger.info("Current cache: " + JSON.stringify( cache ));
-  var cacheEntry = cacheUtils.hit(cache, request.method, request.url);
+  var cacheEntry = cacheUtils.hit(cache, request.method, request.url, request.headers);
 
+  var cacheKey = request.method + " " + request.url + " " + request.headers['mu-authorization-groups'];
   if (utils.existy(cacheEntry)) {
-    logger.info("Cache hit for " + request.method + " " + request.url);
+    logger.info("Cache hit for " + cacheKey);
     return writeResponse(response, 200, cacheEntry.data, cacheEntry.headers);
   }
 
-  logger.info("Cache miss for " + request.method + " " + request.url);
+  logger.info("Cache miss for " + cacheKey);
   // Forward request to proxy
   return proxy.web(request, response, {
     target: cacheBackend
@@ -93,7 +95,7 @@ doProxy("proxyRes", function(backendResponse, request, response) {
     debug = null;
   }
   //logger.info("Cached: "+cached+"\nCleared: "+cleared)
-  stripBackendResponse(backendResponse).then(function(stripped) {
+  stripBackendResponse(backendResponse).then((stripped) => {
     if (cleared) {
       var clearKeys = normalizeKeys( cleared );
       // logger.info("Requested keys to clear: " + JSON.stringify( backendResponse.headers["clear-keys"] ) );
@@ -105,8 +107,8 @@ doProxy("proxyRes", function(backendResponse, request, response) {
     if (cached) {
       var cacheKeys = utils.arrify(JSON.parse(cached));
       //logger.info("Caching keys " + JSON.stringify( cacheKeys ));
-      var entry = cacheUtils.createEntry(request.method, request.url, cacheKeys, stripped.headers, stripped.data);
-      cacheUtils.update(cache, entry,debug);
+      var entry = cacheUtils.createEntry(request, cacheKeys, stripped.headers, stripped.data);
+      cacheUtils.update(cache, entry, debug);
       //logger.info("New cache " + JSON.stringify(cache));
     }
   }, function(error){
