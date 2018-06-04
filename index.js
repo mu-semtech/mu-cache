@@ -90,26 +90,19 @@ var normalizeKeys = function(headerContent){
 doProxy("proxyRes", function(backendResponse, request, response) {
   var cleared = backendResponse.headers["clear-keys"];
   var cached = backendResponse.headers["cache-keys"];
-  var debug = logger;
-  if(!process.env.DEBUG){
-    debug = null;
-  }
-  //logger.info("Cached: "+cached+"\nCleared: "+cleared)
+
   stripBackendResponse(backendResponse).then((stripped) => {
     if (cleared) {
       var clearKeys = normalizeKeys( cleared );
-      // logger.info("Requested keys to clear: " + JSON.stringify( backendResponse.headers["clear-keys"] ) );
-      //logger.info("Clearing keys " + JSON.stringify( clearKeys ));
-      cacheUtils.flush(cache, utils.arrify(clearKeys), debug); //ok to crash?
-      //logger.info("Resulting cache " + JSON.stringify(cache));
+      logger.debug("Clearing keys " + JSON.stringify( clearKeys ));
+      cacheUtils.flush(cache, utils.arrify(clearKeys), logger); //ok to crash?
     }
 
     if (cached) {
       var cacheKeys = utils.arrify(JSON.parse(cached));
-      //logger.info("Caching keys " + JSON.stringify( cacheKeys ));
+      logger.debug("Caching keys " + JSON.stringify( cacheKeys ));
       var entry = cacheUtils.createEntry(request, cacheKeys, stripped.headers, stripped.data);
-      cacheUtils.update(cache, entry, debug);
-      //logger.info("New cache " + JSON.stringify(cache));
+      cacheUtils.update(cache, entry, logger);
     }
   }, function(error){
     logger.error(error);

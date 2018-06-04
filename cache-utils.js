@@ -67,9 +67,8 @@ var cacheUtils = {
       cache.requests[cacheEntry.requestKey] = {};
     cache.requests[cacheEntry.requestKey][cacheEntry.group] = cacheEntry;
 
-    if(logger) {
-      logger.info("updating keys: " + JSON.stringify(cacheEntry.keys));
-    }
+    logger.debug("updating keys: " + JSON.stringify(cacheEntry.keys));
+
     cacheEntry.keys.forEach( function(key) {
       if(!cache.keys[key])
         cache.keys[key] = {};
@@ -78,9 +77,9 @@ var cacheUtils = {
 
       cache.keys[key][cacheEntry.requestKey][cacheEntry.group] = true;
     });
-    if(logger) {
-      logger.info("done updating");
-    }
+
+    logger.debug("done updating");
+
     return cache;
   },
 
@@ -93,9 +92,7 @@ var cacheUtils = {
   flush: function(cache, keys, logger) {
     var self = this;
     // we clear the keys for each key using the index
-    if(logger) {
-      logger.info("Flushing keys: " + JSON.stringify(keys));
-    }
+    logger.debug("Flushing keys: " + JSON.stringify(keys));
     keys.forEach( function(key) {
       Object.keys( cache.keys[key] || {} ).forEach( function( requestKey ) {
         Object.keys( cache.keys[key][requestKey] || {} ).forEach( function( group ) {
@@ -104,9 +101,7 @@ var cacheUtils = {
       });
       delete cache.keys[key];
     } );
-    if(logger) {
-      logger.info("done flushing");
-    }
+    logger.debug("done flushing");
   },
 
   // remove the keys of this entry from the interested keys
@@ -117,12 +112,12 @@ var cacheUtils = {
     delete cache.requests[requestKey];
 
     var chance = Math.random();
-    //logger.info("clear cache? " + process.env.SLOPPINESS_RATING + " clean: "+chance);
+    logger.debug("clear cache? " + process.env.SLOPPINESS_RATING + " clean: " + chance);
     if ((typeof process.env.SLOPPINESS_RATING === 'undefined') || (chance > process.env.SLOPPINESS_RATING)) {
 
-      //logger.info("Removing cached entry: " + JSON.stringify(currentEntry));
+      logger.debug("Removing cached entry: " + JSON.stringify(currentEntry));
       currentEntry.keys.forEach( function( keyToRemove ) {
-        // logger.info("Removing cached content: " + JSON.stringify(keyToRemove));
+        logger.debug("Removing cached content: " + JSON.stringify(keyToRemove));
         delete cache.keys[keyToRemove][currentEntry.requestKey];
       } );
     }
