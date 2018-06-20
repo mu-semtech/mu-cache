@@ -52,11 +52,9 @@ var server = http.createServer(function(request, response) {
   }
 
   // Try to hit the cache
-  // logger.info("Trying to hit cache with " + request.method + " " + request.url);
-  // logger.info("Current cache: " + JSON.stringify( cache ));
   var cacheEntry = cacheUtils.hit(cache, request.method, request.url, request.headers);
 
-  var cacheKey = request.method + " " + request.url + " " + request.headers['mu-authorization-groups'];
+  var cacheKey = request.method + " " + request.url + " " + request.headers['mu-auth-allowed-groups'];
   if (utils.existy(cacheEntry)) {
     logger.info("Cache hit for " + cacheKey);
     return writeResponse(response, 200, cacheEntry.data, cacheEntry.headers);
@@ -164,7 +162,7 @@ function writeResponse(response, statusCode, body, headers) {
 
 function setCacheBackend(env){
   if(!env.CACHE_BACKEND){
-    throw("Please provide url to  environment variable CACHE_BACKEND!");
+    throw("Please provide url to environment variable CACHE_BACKEND!");
   }
   return env.CACHE_BACKEND;
 }

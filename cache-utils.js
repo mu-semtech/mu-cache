@@ -46,12 +46,12 @@ var cacheUtils = {
 
   createEntry: function(request, keys, responseHeaders, responseBody) {
     var group;
-    if (responseHeaders['mu-authorization-groups'])
-      group = responseHeaders['mu-authorization-groups']; // the backend returned auth groups
-    else if (request.headers['mu-authorization-groups'])
-      group = request.headers['mu-authorization-groups']; // fallback to the auth groups of the request
+    if (responseHeaders['mu-auth-allowed-groups'])
+      group = responseHeaders['mu-auth-allowed-groups']; // the backend returned auth groups
+    else if (request.headers['mu-auth-allowed-groups'])
+      group = request.headers['mu-auth-allowed-groups']; // fallback to the auth groups of the request
     else
-      group = 'public'; // nothing known about auth groups
+      group = 'PUBLIC'; // nothing known about auth groups
 
     return {
       requestKey: buildRequestKey(request.method, request.url),
@@ -85,7 +85,7 @@ var cacheUtils = {
 
   hit: function(cache, method, uri, headers) {
     var requestKey = buildRequestKey(method, uri);
-    var group = headers['mu-authorization-groups'] || 'public';
+    var group = headers['mu-auth-allowed-groups'] || 'PUBLIC';
     return cache.requests[requestKey] ? cache.requests[requestKey][group] : null;
   },
 
