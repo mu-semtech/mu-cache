@@ -155,9 +155,10 @@ function writeResponseJSON(response, statusCode, body) {
 }
 
 function writeResponse(response, statusCode, body, headers) {
-  response.useChunkedEncodingByDefault = false;
+  response.removeHeader('transfer-encoding');
   response.writeHead(statusCode, headers);
-  return response.end(body);
+  response.write(body);
+  return response.end();
 }
 
 function setCacheBackend(env){
