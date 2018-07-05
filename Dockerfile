@@ -1,4 +1,4 @@
-FROM node:9.11.1
+FROM node:10.5.0
 
 ENV PORT 80
 ENV CACHE_BACKEND http://backend/
