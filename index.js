@@ -156,6 +156,7 @@ function writeResponseJSON(response, statusCode, body) {
 
 function writeResponse(response, statusCode, body, headers) {
   response.removeHeader('transfer-encoding');
+  headers['Content-Length'] = Buffer.byteLength(body, 'utf-8');
   response.writeHead(statusCode, headers);
   response.write(body);
   return response.end();
