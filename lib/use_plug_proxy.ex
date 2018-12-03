@@ -3,19 +3,6 @@ alias UsePlugProxy.Cache, as: Cache
 defmodule UsePlugProxy do
   use Plug.Router
 
-  def start(argv) do
-    IO.puts "Starting cache"
-    port = 80
-    # port = 8888
-    IO.puts "Starting Plug with Cowboy on port #{port}"
-    Plug.Adapters.Cowboy.http __MODULE__, [], port: port
-    UsePlugProxy.Cache.start_link()
-    unless argv == :continue do
-      :timer.sleep(:infinity)
-    end
-    IO.puts "Started on port #{port}"
-  end
-
   plug Plug.Logger
   plug :match
   plug :dispatch
@@ -54,7 +41,6 @@ defmodule UsePlugProxy do
       url
     end
 
-    # url = "http://localhost:889/" <> full_path
     opts = PlugProxy.init url: url
     processors = %{ header_processor: fn (headers, _conn, state) ->
                     # IO.puts "Received header:"

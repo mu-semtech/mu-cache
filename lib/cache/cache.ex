@@ -9,13 +9,16 @@ defmodule UsePlugProxy.Cache do
   end
 
   def store( { _method, _full_path, _get_params, _allowed_groups } = key, response ) do
+    # IO.puts "Going to store new content"
+    # IO.inspect( key, label: "Key to store under" )
+    # IO.inspect( response, label: "Response to save" )
     GenServer.call( __MODULE__, {:store, key, response } )
   end
 
   ###
   # GenServer API
   ###
-  def start_link() do
+  def start_link(_) do
     GenServer.start_link( __MODULE__, [%{cache: %{}, caches_by_key: %{}}], name: __MODULE__ )
   end
 
@@ -32,6 +35,9 @@ defmodule UsePlugProxy.Cache do
   end
 
   def handle_call({:store, request_key, response}, _from, state) do
+    # IO.inspect( request_key, label: "Request key" )
+    # IO.inspect( response, label: "Response" )
+
     %{ cache_keys: cache_keys, clear_keys: clear_keys } = response
 
     # IO.inspect { :cache_keys, cache_keys }
@@ -42,10 +48,12 @@ defmodule UsePlugProxy.Cache do
       # update state for clear_keys
       |> clear_keys!( clear_keys )
 
+    # IO.puts "Executed clear keys"
+
     if cache_keys == [] do
       {:reply, :ok, state }
     else
-      IO.puts "Caching request"
+      # IO.puts "Caching request"
       # update state for new cache
       state =
         state

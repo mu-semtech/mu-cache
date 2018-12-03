@@ -4,7 +4,7 @@ defmodule UsePlugProxy.Mixfile do
   def project do
     [app: :use_plug_proxy,
      version: "0.1.0",
-     elixir: "~> 1.3",
+     elixir: "~> 1.5",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      deps: deps(),
@@ -12,14 +12,22 @@ defmodule UsePlugProxy.Mixfile do
   end
 
   def aliases do
-    [server: ["run", &UsePlugProxy.start/1]]
+    [server: "run --no-halt"]
   end
+
+  # def aliases do
+  #   [server: ["run", &UsePlugProxy.start/1]]
+  # end
 
   # Configuration for the OTP application
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger, :cowboy, :plug, :plug_proxy]]
+    [
+      extra_applications: [:logger, :cowboy, :plug],
+      mod: {MuElixirCache, []},
+      env: []
+    ]
   end
 
   # Dependencies can be Hex packages:
