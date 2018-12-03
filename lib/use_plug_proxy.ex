@@ -1,9 +1,10 @@
+alias UsePlugProxy.Cache, as: Cache
+
 defmodule UsePlugProxy do
   use Plug.Router
 
-  alias UsePlugProxy.Cache
-
   def start(argv) do
+    IO.puts "Starting cache"
     port = 80
     # port = 8888
     IO.puts "Starting Plug with Cowboy on port #{port}"
@@ -12,6 +13,7 @@ defmodule UsePlugProxy do
     unless argv == :continue do
       :timer.sleep(:infinity)
     end
+    IO.puts "Started on port #{port}"
   end
 
   plug Plug.Logger
@@ -24,56 +26,79 @@ defmodule UsePlugProxy do
 
   match "/*path" do
     full_path = Enum.reduce( path, "", fn (a, b) -> b <> "/" <> a end )
-    cache = Cache.find_cache( conn.method, full_path )
+    known_allowed_groups = get_string_header( conn.req_headers, "mu-auth-allowed-groups" )
+    conn = Plug.Conn.fetch_query_params( conn )
 
-    if cache do
-      IO.puts "CACHE HIT!"
-
-      conn
-      |> merge_resp_headers( cache.headers )
-      |> send_resp( 200, cache.body )
-    else
-      IO.puts "CACHE MISS!"
-      url = "http://backend/" <> full_path
-      IO.puts "Target Proxy URL is " <> url
-      opts = PlugProxy.init url: url
-      processors = %{ header_processor: fn (headers, state) ->
-                      # IO.puts "Received header:"
-                      # IO.inspect headers
-                      headers = downcase_headers( headers )
-
-                      { headers, cache_keys } = extract_json_header( headers, "cache-keys" )
-                      { headers, clear_keys } = extract_json_header( headers, "clear-keys" )
-                      { headers, %{ state |
-                                    headers: headers,
-                                    cache_keys: cache_keys,
-                                    clear_keys: clear_keys } }
-                    end,
-                      chunk_processor: fn (chunk, state) ->
-                        # IO.puts "Received chunk:"
-                        # IO.inspect chunk
-                        { chunk, %{ state | body: state.body <> chunk } }
-                      end,
-                      body_processor: fn (body, state) ->
-                        # IO.puts "Received body:"
-                        # IO.inspect body
-                        { body, %{ state | body: state.body <> body } }
-                      end,
-                      finish_hook: fn (state) ->
-                        # IO.puts "Fully received body"
-                        # IO.puts state.body
-                        # IO.puts "Current state:"
-                        # IO.inspect state
-                        Cache.store( conn.method, full_path, state )
-                        { true, state }
-                      end,
-                      state: %{is_processor_state: true, body: "", headers: %{}, status_code: 200, cache_keys: [], clear_keys: []}
-                    }
-      conn
-      |> Map.put( :processors, processors )
-      |> PlugProxy.call( opts )
-      # |> IO.inspect
+    cond do
+      known_allowed_groups == nil ->
+        # without allowed groups, we don't know the access rights
+        IO.puts "No allowed groups, no cache"
+        calculate_response_from_backend( full_path, conn )
+      cached_value = Cache.find_cache( { conn.method, full_path, conn.query_string, known_allowed_groups } ) ->
+        # with allowed groups and a cache, we should use the cache
+        IO.puts "Cache hit"
+        respond_with_cache( conn, cached_value )
+      true ->
+        # without a cache, we should consult the backend
+        IO.puts "Cache miss"
+        calculate_response_from_backend( full_path, conn )
     end
+  end
+
+  defp calculate_response_from_backend( full_path, conn ) do
+    url = "http://backend/" <> full_path
+
+    url = if conn.query_string do
+      url <> "?" <> conn.query_string
+    else
+      url
+    end
+
+    # url = "http://localhost:889/" <> full_path
+    opts = PlugProxy.init url: url
+    processors = %{ header_processor: fn (headers, _conn, state) ->
+                    # IO.puts "Received header:"
+                    # IO.inspect headers
+                    headers = downcase_headers( headers )
+
+                    { headers, cache_keys } = extract_json_header( headers, "cache-keys" )
+                    { headers, clear_keys } = extract_json_header( headers, "clear-keys" )
+                    { headers, %{ state |
+                                  headers: headers,
+                                  allowed_groups: get_string_header( headers, "mu-auth-allowed-groups" ),
+                                  cache_keys: cache_keys,
+                                  clear_keys: clear_keys } }
+                    end,
+                    chunk_processor: fn (chunk, state) ->
+                      # IO.puts "Received chunk:"
+                      # IO.inspect chunk
+                      { chunk, %{ state | body: state.body <> chunk } }
+                    end,
+                    body_processor: fn (body, state) ->
+                      # IO.puts "Received body:"
+                      # IO.inspect body
+                      { body, %{ state | body: state.body <> body } }
+                    end,
+                    finish_hook: fn (state) ->
+                      # IO.puts "Fully received body"
+                      # IO.puts state.body
+                      # IO.puts "Current state:"
+                      # IO.inspect state
+                      Cache.store( { conn.method, full_path, conn.query_string, state.allowed_groups }, state )
+                      { true, state }
+                    end,
+                    state: %{is_processor_state: true, body: "", headers: %{}, status_code: 200, cache_keys: [], clear_keys: [], allowed_groups: nil}
+                  }
+    conn
+    |> Map.put( :processors, processors )
+    |> PlugProxy.call( opts )
+    # |> IO.inspect
+  end
+
+  defp respond_with_cache( conn, cached_value ) do
+    conn
+    |> merge_resp_headers( cached_value.headers )
+    |> send_resp( 200, cached_value.body )
   end
 
   defp extract_json_header( headers, header_name ) do
@@ -83,6 +108,14 @@ defmodule UsePlugProxy do
         { new_headers, Poison.decode!(keys) }
       _ ->
         { headers, [] }
+    end
+  end
+
+  defp get_string_header( headers, header_name ) do
+    case List.keyfind( headers, header_name, 0 ) do
+      { ^header_name, string } ->
+        string
+      _ -> nil
     end
   end
 

@@ -8,7 +8,7 @@ defmodule UsePlugProxy.Mixfile do
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      deps: deps(),
-     aliases: aliases]
+     aliases: aliases()]
   end
 
   def aliases do
@@ -33,6 +33,7 @@ defmodule UsePlugProxy.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [{:plug_proxy, git: "https://github.com/madnificent/plug-proxy.git"},
+     {:plug_cowboy, "~> 1.0"},
      {:poison, "~> 2.0"}]
   end
 end

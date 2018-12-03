@@ -1,15 +1,15 @@
 defmodule UsePlugProxy.Cache do
   use GenServer
 
-  def find_cache( method, location ) do
-    case GenServer.call( __MODULE__, { :find_cache, method, location } ) do
+  def find_cache( { _method, _full_path, _get_params, _allowed_groups } = key ) do
+    case GenServer.call( __MODULE__, { :find_cache, key } ) do
       { :ok, response } -> response
       { :not_found } -> nil
     end
   end
 
-  def store( method, location, response ) do
-    GenServer.call( __MODULE__, {:store, method, location, response } )
+  def store( { _method, _full_path, _get_params, _allowed_groups } = key, response ) do
+    GenServer.call( __MODULE__, {:store, key, response } )
   end
 
   ###
@@ -23,40 +23,36 @@ defmodule UsePlugProxy.Cache do
     {:ok, %{cache: %{}, caches_by_key: %{}}}
   end
 
-
-  def handle_call({:has_key, method, location}, _from, state) do
-    { :reply, has_key?( state, {method, location} ), state }
-  end
-
-  def handle_call({:find_cache, method, location}, _from, state) do
-    if has_key? state, {method, location} do
-      { :reply, { :ok, Map.get( state.cache, { method, location} ) }, state }
+  def handle_call({:find_cache, key}, _from, state) do
+    if has_key? state, key do
+      { :reply, { :ok, Map.get( state.cache, key ) }, state }
     else
       { :reply, { :not_found }, state }
     end
   end
 
-  def handle_call({:store, method, location, response}, _from, state) do
-    request_key = { method, location }
+  def handle_call({:store, request_key, response}, _from, state) do
     %{ cache_keys: cache_keys, clear_keys: clear_keys } = response
 
     # IO.inspect { :cache_keys, cache_keys }
     # IO.inspect { :clear_keys, clear_keys }
 
-    state = state
-    |> clear_keys!( clear_keys )
-    |> cache_keys!( cache_keys, request_key )
+    state =
+      state
+      # update state for clear_keys
+      |> clear_keys!( clear_keys )
 
-    if cache_keys != [] do
-      cache = Map.put( state.cache, request_key, response )
-      state = Map.put( state, :cache, cache )
-      # IO.puts "Resulting state:"
-      # IO.inspect( state )
-      { :reply, :ok, state }
+    if cache_keys == [] do
+      {:reply, :ok, state }
     else
-      # IO.puts "Resulting state:"
-      # IO.inspect( state )
-      { :reply, :ok, state }
+      IO.puts "Caching request"
+      # update state for new cache
+      state =
+        state
+        |> add_cache_key_dependency!( cache_keys, request_key )
+        |> add_cached_value!( request_key, response )
+
+      {:reply, :ok, state }
     end
   end
 
@@ -64,74 +60,56 @@ defmodule UsePlugProxy.Cache do
     Map.has_key?( state.cache, key )
   end
 
+  defp clear_keys!( state, [] ) do
+    state
+  end
   defp clear_keys!( state, clear_keys ) do
-    # IO.puts "Clearing keys: "
-    # IO.inspect clear_keys
-    Enum.reduce clear_keys, state, fn ( clear_key, state ) ->
-      # IO.puts "Clearing one key:"
-      # IO.inspect clear_key
-      key_cache = state.caches_by_key
-      # IO.puts "Caches by key:"
-      # IO.inspect key_cache
-      if Map.has_key? key_cache, clear_key do
-        request_keys = key_cache[clear_key]
-        state = Enum.reduce( request_keys, state, &(clear_cache_by_key! &2, &1) ) # something goes wrong here
-        |> Map.put( :caches_by_key, Map.delete( key_cache, clear_key ) )
-      else
-        state
-      end
-    end
+    # We have multiple clear_keys and need to update the state for it.
+    %{ cache: cache, caches_by_key: caches_by_key } = state
+
+    cache =
+      Enum.reduce( clear_keys, cache, fn (clear_key, cache) ->
+        keys_to_remove = Map.get( caches_by_key, clear_key, [] )
+        cache = Map.drop( cache, keys_to_remove )
+        cache
+      end )
+
+    caches_by_key =
+      Map.drop( caches_by_key, clear_keys )
+
+    %{ state |
+       cache: cache,
+       caches_by_key: caches_by_key }
   end
 
-  defp clear_cache_by_key!( state, request_key ) do
-    key_cache = state.caches_by_key
-    # IO.puts "Clearing cache by key"
-    # IO.inspect {:request_key, request_key}
-    # IO.inspect {:cache, state.cache}
-    request_object = state.cache[request_key]
-    %{ cache_keys: cache_keys } = request_object
-
-    # Remove the cached references
-    cache = Map.delete( state.cache, request_key )
-    key_cache = Enum.reduce cache_keys, key_cache, fn (cache_key, key_cache) ->
-      list = Map.get( key_cache, cache_key, [] )
-      Map.put( key_cache, cache_key, List.delete( list, cache_key ) )
-    end
-    
-    %{ state | cache: cache, caches_by_key: key_cache }
+  defp add_cache_key_dependency!( state, [], _request_key ) do
+    state
   end
+  defp add_cache_key_dependency!( state, cache_keys, request_key ) do
+    # For each cache_key, we need to see if the request_key is already
+    # in the cache_keys and add it if it is not there.
+    %{ caches_by_key: caches_by_key } = state
 
-  defp cache_keys!( state, cache_keys, request_key ) do
-    key_cache = state.caches_by_key
-    # IO.puts "key_cache:"
-    # IO.inspect key_cache
-    # IO.puts "Caching key:"
-    # IO.inspect cache_keys
-    # IO.puts "Request key:"
-    # IO.inspect request_key
-    key_cache = Enum.reduce cache_keys, key_cache, fn( cache_key, key_cache ) ->
-      if Map.has_key? key_cache, cache_key do
-        current_list = Map.get key_cache, cache_key
-        if Enum.member? current_list, request_key do
-          # We are already in the list
-          # IO.puts "Don't cache key duplicate:"
-          # IO.inspect cache_key
-          # IO.inspect current_list
-          key_cache
+    caches_by_key =
+      Enum.reduce( cache_keys, caches_by_key, fn (cache_key, caches_by_key) ->
+        relevant_keys = Map.get( caches_by_key, cache_key, [] )
+
+        if Enum.member?( relevant_keys, request_key ) do
+          caches_by_key
         else
-          # We have a list to append to
-          # IO.puts "Append cache key to list:"
-          # IO.inspect cache_key
-          # IO.inspect current_list
-          Map.put key_cache, cache_key, [ request_key |  current_list ]
+          Map.put( caches_by_key, cache_key, [ request_key | relevant_keys ] )
         end
-      else
-        # The cache key was unkown
-          # IO.puts "Create new cache list:"
-          # IO.inspect cache_key
-        Map.put key_cache, cache_key, [request_key]
-      end
-    end
-    %{ state | caches_by_key: key_cache }
+      end )
+
+    %{ state | caches_by_key: caches_by_key }
   end
+
+  defp add_cached_value!( state, request_key, response ) do
+    %{ cache: cache } = state
+
+    cache = Map.put( cache, request_key, response )
+
+    %{ state | cache: cache }
+  end
+
 end
