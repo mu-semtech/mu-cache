@@ -1,24 +1,17 @@
-# UsePlugProxy
+# mu-elixir-cache
 
-**TODO: Add description**
+An drop-in replacement for mu-cache implemented in Elixir.
 
-## Installation
+_Now extended with some extra features for clearing by delta._
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed as:
+## configuration
 
-  1. Add `use_plug_proxy` to your list of dependencies in `mix.exs`:
+As a default mu-elixir-cache works like mu-cache transparantly.  No
+configuration is needed for it operate.  Optional configuration below.
 
-    ```elixir
-    def deps do
-      [{:use_plug_proxy, "~> 0.1.0"}]
-    end
-    ```
+## debugging
 
-  2. Ensure `use_plug_proxy` is started before your application:
+Debugging of cache keys is helped by following environment variables:
 
-    ```elixir
-    def application do
-      [applications: [:use_plug_proxy]]
-    end
-    ```
-
+  - `LOG_CACHE_KEYS`: Logs received cache key to a response
+  - `LOG_CLEAR_KEYS`: Logs received clear keys either as a response, or explicitly received through ./mu/delta.
