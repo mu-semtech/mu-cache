@@ -15,6 +15,10 @@ defmodule UsePlugProxy.Cache do
     GenServer.call( __MODULE__, {:store, key, response } )
   end
 
+  def clear_keys( keys ) do
+    GenServer.call( __MODULE__, {:clear_keys, keys} )
+  end
+
   ###
   # GenServer API
   ###
@@ -62,6 +66,10 @@ defmodule UsePlugProxy.Cache do
 
       {:reply, :ok, state }
     end
+  end
+
+  def handle_call({:clear_keys, keys}, _from, state) do
+    {:reply, :ok, clear_keys!( state, keys )}
   end
 
   defp has_key?( state, key ) do

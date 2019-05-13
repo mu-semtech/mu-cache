@@ -2,11 +2,27 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 
+defmodule CH do
+  def system_boolean(name) do
+    case String.downcase(System.get_env(name) || "") do
+      "true" -> true
+      "yes" -> true
+      "1" -> true
+      "on" -> true
+      _ -> false
+    end
+  end
+end
+
 # This configuration is loaded before any dependency and is restricted
 # to this project. If another project depends on this project, this
 # file won't be loaded nor affect the parent project. For this reason,
 # if you want to provide default values for your application for
 # 3rd-party users, it should be done in your "mix.exs" file.
+
+config :use_plug_proxy,
+  log_cache_keys: CH.system_boolean("LOG_CACHE_KEYS"),
+  log_clear_keys: CH.system_boolean("LOG_CLEAR_KEYS")
 
 # You can configure for your application as:
 #

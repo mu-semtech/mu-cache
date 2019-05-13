@@ -3,111 +3,151 @@ alias UsePlugProxy.Cache, as: Cache
 defmodule UsePlugProxy do
   use Plug.Router
 
-  plug Plug.Logger
-  plug :match
-  plug :dispatch
+  plug(Plug.Logger)
+  plug(:match)
+  plug(:dispatch)
 
   get "/cachecanhasresponse" do
-    send_resp( conn, 200, "debugging is a go" )
+    send_resp(conn, 200, "debugging is a go")
+  end
+
+  match "/.mu/clear-keys" do
+    [clear_keys] = Plug.Conn.get_req_header(conn, "clear-keys")
+
+    clear_keys
+    |> Poison.decode!()
+    |> (fn clear_keys ->
+          if Application.get_env(:use_plug_proxy, :log_clear_keys) do
+            IO.inspect(clear_keys, label: "Clear keys")
+          end
+        end).()
+    |> Cache.clear_keys()
+
+    Plug.Conn.send_resp(conn, 204, "")
   end
 
   match "/*path" do
-    full_path = Enum.reduce( path, "", fn (a, b) -> b <> "/" <> a end )
-    known_allowed_groups = get_string_header( conn.req_headers, "mu-auth-allowed-groups" )
-    conn = Plug.Conn.fetch_query_params( conn )
+    full_path = Enum.reduce(path, "", fn a, b -> b <> "/" <> a end)
+    known_allowed_groups = get_string_header(conn.req_headers, "mu-auth-allowed-groups")
+    conn = Plug.Conn.fetch_query_params(conn)
 
     cond do
       known_allowed_groups == nil ->
         # without allowed groups, we don't know the access rights
-        IO.puts "No allowed groups, no cache"
-        calculate_response_from_backend( full_path, conn )
-      cached_value = Cache.find_cache( { conn.method, full_path, conn.query_string, known_allowed_groups } ) ->
+        calculate_response_from_backend(full_path, conn)
+
+      cached_value =
+          Cache.find_cache({conn.method, full_path, conn.query_string, known_allowed_groups}) ->
         # with allowed groups and a cache, we should use the cache
-        IO.puts "Cache hit"
-        respond_with_cache( conn, cached_value )
+        respond_with_cache(conn, cached_value)
+
       true ->
         # without a cache, we should consult the backend
-        IO.puts "Cache miss"
-        calculate_response_from_backend( full_path, conn )
+        IO.puts("Cache miss")
+        calculate_response_from_backend(full_path, conn)
     end
   end
 
-  defp calculate_response_from_backend( full_path, conn ) do
+  defp calculate_response_from_backend(full_path, conn) do
     url = "http://backend/" <> full_path
 
-    url = if conn.query_string do
-      url <> "?" <> conn.query_string
-    else
-      url
-    end
+    url =
+      if conn.query_string do
+        url <> "?" <> conn.query_string
+      else
+        url
+      end
 
-    opts = PlugProxy.init url: url
-    processors = %{ header_processor: fn (headers, _conn, state) ->
-                    # IO.puts "Received header:"
-                    # IO.inspect headers
-                    headers = downcase_headers( headers )
+    opts = PlugProxy.init(url: url)
 
-                    { headers, cache_keys } = extract_json_header( headers, "cache-keys" )
-                    { headers, clear_keys } = extract_json_header( headers, "clear-keys" )
-                    { headers, %{ state |
-                                  headers: headers,
-                                  allowed_groups: get_string_header( headers, "mu-auth-allowed-groups" ),
-                                  cache_keys: cache_keys,
-                                  clear_keys: clear_keys } }
-                    end,
-                    chunk_processor: fn (chunk, state) ->
-                      # IO.puts "Received chunk:"
-                      # IO.inspect chunk
-                      { chunk, %{ state | body: state.body <> chunk } }
-                    end,
-                    body_processor: fn (body, state) ->
-                      # IO.puts "Received body:"
-                      # IO.inspect body
-                      { body, %{ state | body: state.body <> body } }
-                    end,
-                    finish_hook: fn (state) ->
-                      # IO.puts "Fully received body"
-                      # IO.puts state.body
-                      # IO.puts "Current state:"
-                      # IO.inspect state
-                      Cache.store( { conn.method, full_path, conn.query_string, state.allowed_groups }, state )
-                      { true, state }
-                    end,
-                    state: %{is_processor_state: true, body: "", headers: %{}, status_code: 200, cache_keys: [], clear_keys: [], allowed_groups: nil}
-                  }
+    processors = %{
+      header_processor: fn headers, _conn, state ->
+        headers = downcase_headers(headers)
+
+        {headers, cache_keys} = extract_json_header(headers, "cache-keys")
+        {headers, clear_keys} = extract_json_header(headers, "clear-keys")
+
+        if Application.get_env(:use_plug_proxy, :log_cache_keys) do
+          IO.inspect(cache_keys, label: "Cache keys")
+        end
+
+        if Application.get_env(:use_plug_proxy, :log_clear_keys) do
+          IO.inspect(clear_keys, label: "Clear keys")
+        end
+
+        {headers,
+         %{
+           state
+           | headers: headers,
+             allowed_groups: get_string_header(headers, "mu-auth-allowed-groups"),
+             cache_keys: cache_keys,
+             clear_keys: clear_keys
+         }}
+      end,
+      chunk_processor: fn chunk, state ->
+        # IO.puts "Received chunk:"
+        # IO.inspect chunk
+        {chunk, %{state | body: state.body <> chunk}}
+      end,
+      body_processor: fn body, state ->
+        # IO.puts "Received body:"
+        # IO.inspect body
+        {body, %{state | body: state.body <> body}}
+      end,
+      finish_hook: fn state ->
+        # IO.puts "Fully received body"
+        # IO.puts state.body
+        # IO.puts "Current state:"
+        # IO.inspect state
+        Cache.store({conn.method, full_path, conn.query_string, state.allowed_groups}, state)
+        {true, state}
+      end,
+      state: %{
+        is_processor_state: true,
+        body: "",
+        headers: %{},
+        status_code: 200,
+        cache_keys: [],
+        clear_keys: [],
+        allowed_groups: nil
+      }
+    }
+
     conn
-    |> Map.put( :processors, processors )
-    |> PlugProxy.call( opts )
-    # |> IO.inspect
+    |> Map.put(:processors, processors)
+    |> PlugProxy.call(opts)
   end
 
-  defp respond_with_cache( conn, cached_value ) do
+  defp respond_with_cache(conn, cached_value) do
     conn
-    |> merge_resp_headers( cached_value.headers )
-    |> send_resp( 200, cached_value.body )
+    |> merge_resp_headers(cached_value.headers)
+    |> send_resp(200, cached_value.body)
   end
 
-  defp extract_json_header( headers, header_name ) do
-    case List.keyfind( headers, header_name, 0 ) do
-      { ^header_name, keys } ->
-        new_headers = List.keydelete( headers, header_name, 0 )
-        { new_headers, Poison.decode!(keys) }
+  defp extract_json_header(headers, header_name) do
+    case List.keyfind(headers, header_name, 0) do
+      {^header_name, keys} ->
+        new_headers = List.keydelete(headers, header_name, 0)
+        {new_headers, Poison.decode!(keys)}
+
       _ ->
-        { headers, [] }
+        {headers, []}
     end
   end
 
-  defp get_string_header( headers, header_name ) do
-    case List.keyfind( headers, header_name, 0 ) do
-      { ^header_name, string } ->
+  defp get_string_header(headers, header_name) do
+    case List.keyfind(headers, header_name, 0) do
+      {^header_name, string} ->
         string
-      _ -> nil
+
+      _ ->
+        nil
     end
   end
 
-  defp downcase_headers( headers ) do
-    Enum.map headers, fn { header, content } ->
-      { String.downcase(header), content }
-    end
+  defp downcase_headers(headers) do
+    Enum.map(headers, fn {header, content} ->
+      {String.downcase(header), content}
+    end)
   end
 end
