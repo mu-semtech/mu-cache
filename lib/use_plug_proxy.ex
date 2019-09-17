@@ -12,16 +12,13 @@ defmodule UsePlugProxy do
   end
 
   match "/.mu/clear-keys" do
-    [clear_keys] = Plug.Conn.get_req_header(conn, "clear-keys")
-
-    clear_keys
-    |> Poison.decode!()
-    |> (fn clear_keys ->
-          if Application.get_env(:use_plug_proxy, :log_clear_keys) do
-            IO.inspect(clear_keys, label: "Clear keys")
-          end
-        end).()
-    |> Cache.clear_keys()
+    conn
+    |> Plug.Conn.get_req_header("clear-keys")
+    |> Enum.map(&Poison.decode!/1)
+    # remove nil values
+    |> Enum.filter(& &1)
+    |> Enum.map(&maybe_log_clear_keys/1)
+    |> Enum.map(&Cache.clear_keys/1)
 
     Plug.Conn.send_resp(conn, 204, "")
   end
@@ -48,6 +45,22 @@ defmodule UsePlugProxy do
     end
   end
 
+  defp maybe_log_clear_keys(clear_keys) do
+    if Application.get_env(:use_plug_proxy, :log_clear_keys) do
+      IO.inspect(clear_keys, label: "Clear keys")
+    end
+
+    clear_keys
+  end
+
+  defp maybe_log_cache_keys(cache_keys) do
+    if Application.get_env(:use_plug_proxy, :log_cache_keys) do
+      IO.inspect(cache_keys, label: "Cache keys")
+    end
+
+    cache_keys
+  end
+
   defp calculate_response_from_backend(full_path, conn) do
     url = "http://backend/" <> full_path
 
@@ -67,13 +80,8 @@ defmodule UsePlugProxy do
         {headers, cache_keys} = extract_json_header(headers, "cache-keys")
         {headers, clear_keys} = extract_json_header(headers, "clear-keys")
 
-        if Application.get_env(:use_plug_proxy, :log_cache_keys) do
-          IO.inspect(cache_keys, label: "Cache keys")
-        end
-
-        if Application.get_env(:use_plug_proxy, :log_clear_keys) do
-          IO.inspect(clear_keys, label: "Clear keys")
-        end
+        maybe_log_cache_keys( cache_keys )
+        maybe_log_clear_keys( clear_keys )
 
         {headers,
          %{
