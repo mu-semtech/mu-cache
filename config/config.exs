@@ -24,7 +24,9 @@ config :use_plug_proxy,
   log_cache_keys: CH.system_boolean("LOG_CACHE_KEYS"),
   log_clear_keys: CH.system_boolean("LOG_CLEAR_KEYS"),
   store_cleared_urls: CH.system_boolean("STORE_CLEARED_URLS"),
-  default_sparql_endpoint: (System.get_env("MU_SPARQL_ENDPOINT") || "http://localhost:8890/sparql")
+  default_sparql_endpoint: (System.get_env("MU_SPARQL_ENDPOINT") || "http://localhost:8890/sparql"),
+  source_uri: System.get_env("SOURCE_URI"),
+  default_allowed_groups: System.get_env("DEFAULT_ALLOWED_GROUPS")
 
 # You can configure for your application as:
 #

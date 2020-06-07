@@ -74,6 +74,8 @@ defmodule Introspection.Informing do
 
   @spec sparql_triples([{String.t(), String.t(), String.t()}]) :: String.t()
   defp sparql_triples(urls) do
+    source_uri = Application.get_env(:use_plug_proxy, :source_uri)
+
     # convert into a datastructure we can use
     url_statements_list =
       Enum.map(urls, fn {method, base, query, access_rights} ->
@@ -124,6 +126,7 @@ defmodule Introspection.Informing do
 
     """
     #{resource_uri} a <http://semantic.works/vocabularies/cache/CacheClearEvent>;
+       <http://semantic.works/vocabularies/cache/source> <#{source_uri}>;
        <http://semantic.works/vocabularies/cache/clears> #{statement_resource_urls}.
 
     #{statement_triples}

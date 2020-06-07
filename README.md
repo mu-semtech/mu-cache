@@ -40,3 +40,4 @@ This feature is mainly intended for push updates to work on a per-url level.
 
   - `STORE_CLEARED_URLS`: Stores the URLs to be cleared in the triplestore.
   - `MU_SPARQL_ENDPOINT`: Use this environment variable if you need to have the database on a different endpoint than http://database:8890/sparql
+  - `SOURCE_URI`: Optional identification for this specific service, which is added to the cache clearing events in the triplestore.  Can be used to distinguish events from multiple mu-cache instances.  Defaults to `http://semantic.works/services/mu-cache/default`.
