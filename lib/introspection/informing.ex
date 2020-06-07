@@ -17,8 +17,6 @@ defmodule Introspection.Informing do
   """
   @spec store_cleared_urls([String.t()]) :: [String.t()]
   def store_cleared_urls(urls) do
-    IO.inspect(urls, label: "Urls to clear")
-
     if(Application.get_env(:use_plug_proxy, :store_cleared_urls)) do
       GenServer.cast(__MODULE__, {:send_clear, urls})
     end
@@ -43,7 +41,6 @@ defmodule Introspection.Informing do
         #{sparql_triples(urls)}
       }
     """
-    |> IO.inspect( label: "Full query" )
 
     # TODO: retry query sending on error
     send_query(query)
@@ -55,7 +52,7 @@ defmodule Introspection.Informing do
   defp send_query(query) do
     poison_options = [recv_timeout: 60_000]
     backend = Application.get_env(:use_plug_proxy, :default_sparql_endpoint)
-    |> IO.inspect( label: "Backend server" )
+
     try do
       poisonResponse =
         HTTPoison.post!(
@@ -67,12 +64,10 @@ defmodule Introspection.Informing do
           ],
           poison_options
         )
-        |> IO.inspect( label: "Response" )
-
       {:ok, poisonResponse.body}
     rescue
       exception ->
-        IO.inspect( exception, label: "Something caught fire" )
+        IO.inspect(exception, label: "ERROR! Could not write cache clearing to triplestore. Received exception")
         {:fail}
     end
   end
@@ -80,8 +75,6 @@ defmodule Introspection.Informing do
   @spec sparql_triples([{String.t(), String.t(), String.t()}]) :: String.t()
   defp sparql_triples(urls) do
     # convert into a datastructure we can use
-    IO.inspect( urls, label: "URLs to be mapped into statements" )
-
     url_statements_list =
       Enum.map(urls, fn {method, base, query, access_rights} ->
         # calculate the real url of the request
@@ -135,7 +128,6 @@ defmodule Introspection.Informing do
 
     #{statement_triples}
     """
-    |> IO.inspect(label: "Triples to send")
   end
 
   @spec sparql_escape_string(String.t()) :: String.t()
