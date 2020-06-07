@@ -82,16 +82,12 @@ defmodule UsePlugProxy.Cache do
   defp clear_keys!( state, clear_keys ) do
     # We have multiple clear_keys and need to update the state for it.
     %{ cache: cache, caches_by_key: caches_by_key } = state
+    clear_urls = Enum.flat_map(clear_keys, &Map.get(caches_by_key, &1, []))
 
-    cache =
-      Enum.reduce( clear_keys, cache, fn (clear_key, cache) ->
-        keys_to_remove = Map.get( caches_by_key, clear_key, [] )
-        cache = Map.drop( cache, keys_to_remove )
-        cache
-      end )
+    cache = Map.drop( cache, clear_urls )
+    caches_by_key = Map.drop(caches_by_key, clear_keys)
 
-    caches_by_key =
-      Map.drop( caches_by_key, clear_keys )
+    Introspection.Informing.store_cleared_urls( clear_urls )
 
     %{ state |
        cache: cache,

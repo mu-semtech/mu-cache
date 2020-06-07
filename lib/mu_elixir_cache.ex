@@ -6,6 +6,7 @@ defmodule MuElixirCache do
     # List all child processes to be supervised
     children = [
       {UsePlugProxy.Cache, %{}},
+      {Introspection.Informing, %{}},
       {Plug.Cowboy,
        scheme: :http,
        plug: UsePlugProxy,

@@ -32,3 +32,11 @@ Debugging of cache keys is helped by following environment variables:
 
   - `LOG_CACHE_KEYS`: Logs received cache key to a response
   - `LOG_CLEAR_KEYS`: Logs received clear keys either as a response, or explicitly received through ./mu/delta.
+
+## Introspection
+The mu-cache can optionally log changed triples into the triplestore.  In order to do so, it will write triples to the triplestore indicating which URLs have been cleared.
+
+This feature is mainly intended for push updates to work on a per-url level.
+
+  - `STORE_CLEARED_URLS`: Stores the URLs to be cleared in the triplestore.
+  - `MU_SPARQL_ENDPOINT`: Use this environment variable if you need to have the database on a different endpoint than http://database:8890/sparql
