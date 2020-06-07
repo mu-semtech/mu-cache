@@ -61,14 +61,14 @@ defmodule UsePlugProxy do
     cache_keys
   end
 
+  @spec calculate_response_from_backend(String.t, Plug.Conn.t) :: Plug.Conn.t
   defp calculate_response_from_backend(full_path, conn) do
     url = "http://backend/" <> full_path
 
     url =
-      if conn.query_string do
-        url <> "?" <> conn.query_string
-      else
-        url
+      case conn.query_string do
+        "" -> url
+        query -> url <> "?" <> query
       end
 
     opts = PlugProxy.init(url: url)
