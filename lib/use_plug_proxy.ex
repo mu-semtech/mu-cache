@@ -62,7 +62,7 @@ defmodule UsePlugProxy do
   end
 
   defp calculate_response_from_backend(full_path, conn) do
-    url = "http://backend/" <> full_path
+    url = "http://backend" <> full_path #Full path starts with /
 
     url =
       if conn.query_string do
