@@ -63,7 +63,7 @@ defmodule UsePlugProxy do
 
   @spec calculate_response_from_backend(String.t, Plug.Conn.t) :: Plug.Conn.t
   defp calculate_response_from_backend(full_path, conn) do
-    url = "http://backend/" <> full_path
+    url = "http://backend" <> full_path #Full path starts with /
 
     url =
       case conn.query_string do
