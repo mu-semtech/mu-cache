@@ -2,13 +2,15 @@ defmodule UsePlugProxy.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :use_plug_proxy,
-     version: "2.0.2",
-     elixir: "~> 1.5",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     deps: deps(),
-     aliases: aliases()]
+    [
+      app: :use_plug_proxy,
+      version: "2.0.2",
+      elixir: "~> 1.5",
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
+      deps: deps(),
+      aliases: aliases()
+    ]
   end
 
   def aliases do
@@ -40,8 +42,12 @@ defmodule UsePlugProxy.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [{:plug_proxy, git: "https://github.com/madnificent/plug-proxy.git"},
-     {:plug_cowboy, "~> 1.0"},
-     {:poison, "~> 2.0"}]
+    [
+      {:plug_proxy, git: "https://github.com/madnificent/plug-proxy.git"},
+      {:plug_cowboy, "~> 1.0"},
+      {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:poison, "~> 2.0"}
+    ]
   end
 end

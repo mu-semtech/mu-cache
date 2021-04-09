@@ -1,6 +1,9 @@
-alias UsePlugProxy.Cache, as: Cache
+alias Cache.Registry, as: Cache
 
 defmodule UsePlugProxy do
+  @moduledoc """
+  Router for receiving cache requests.
+  """
   use Plug.Router
 
   plug(Plug.Logger)
@@ -47,6 +50,7 @@ defmodule UsePlugProxy do
 
   defp maybe_log_clear_keys(clear_keys) do
     if Application.get_env(:use_plug_proxy, :log_clear_keys) do
+      # credo:disable-for-next-line Credo.Check.Warning.IoInspect
       IO.inspect(clear_keys, label: "Clear keys")
     end
 
@@ -55,15 +59,17 @@ defmodule UsePlugProxy do
 
   defp maybe_log_cache_keys(cache_keys) do
     if Application.get_env(:use_plug_proxy, :log_cache_keys) do
+      # credo:disable-for-next-line Credo.Check.Warning.IoInspect
       IO.inspect(cache_keys, label: "Cache keys")
     end
 
     cache_keys
   end
 
-  @spec calculate_response_from_backend(String.t, Plug.Conn.t) :: Plug.Conn.t
+  @spec calculate_response_from_backend(String.t(), Plug.Conn.t()) :: Plug.Conn.t()
   defp calculate_response_from_backend(full_path, conn) do
-    url = "http://backend" <> full_path #Full path starts with /
+    # Full path starts with /
+    url = "http://backend" <> full_path
 
     url =
       case conn.query_string do
@@ -80,8 +86,8 @@ defmodule UsePlugProxy do
         {headers, cache_keys} = extract_json_header(headers, "cache-keys")
         {headers, clear_keys} = extract_json_header(headers, "clear-keys")
 
-        maybe_log_cache_keys( cache_keys )
-        maybe_log_clear_keys( clear_keys )
+        maybe_log_cache_keys(cache_keys)
+        maybe_log_clear_keys(clear_keys)
 
         {headers,
          %{

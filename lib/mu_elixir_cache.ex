@@ -1,11 +1,14 @@
 defmodule MuElixirCache do
+  @moduledoc """
+  Main supervisor for the cache.
+  """
   use Application
 
   def start(_type, _args) do
     IO.puts("Starting application")
     # List all child processes to be supervised
     children = [
-      {UsePlugProxy.Cache, %{}},
+      {Cache.Registry, %{}},
       {Plug.Cowboy,
        scheme: :http,
        plug: UsePlugProxy,
