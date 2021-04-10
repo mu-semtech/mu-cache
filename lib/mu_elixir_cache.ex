@@ -11,7 +11,7 @@ defmodule MuElixirCache do
       {Cache.Registry, %{}},
       {Plug.Cowboy,
        scheme: :http,
-       plug: UsePlugProxy,
+       plug: MuCachePlug,
        options: [
          port: 80,
          protocol_options: [max_header_value_length: 409_600_000, max_keepalive: 1000]

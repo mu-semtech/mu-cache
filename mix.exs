@@ -3,7 +3,7 @@ defmodule UsePlugProxy.Mixfile do
 
   def project do
     [
-      app: :use_plug_proxy,
+      app: :mu_cache,
       version: "2.0.2",
       elixir: "~> 1.5",
       build_embedded: Mix.env() == :prod,

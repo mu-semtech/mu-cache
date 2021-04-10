@@ -20,7 +20,7 @@ end
 # if you want to provide default values for your application for
 # 3rd-party users, it should be done in your "mix.exs" file.
 
-config :use_plug_proxy,
+config :mu_cache,
   log_cache_keys: CH.system_boolean("LOG_CACHE_KEYS"),
   log_clear_keys: CH.system_boolean("LOG_CLEAR_KEYS")
 

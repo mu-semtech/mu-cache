@@ -1,6 +1,6 @@
 alias Cache.Registry, as: Cache
 
-defmodule UsePlugProxy do
+defmodule MuCachePlug do
   @moduledoc """
   Router for receiving cache requests.
   """
@@ -49,7 +49,7 @@ defmodule UsePlugProxy do
   end
 
   defp maybe_log_clear_keys(clear_keys) do
-    if Application.get_env(:use_plug_proxy, :log_clear_keys) do
+    if Application.get_env(:mu_cache, :log_clear_keys) do
       # credo:disable-for-next-line Credo.Check.Warning.IoInspect
       IO.inspect(clear_keys, label: "Clear keys")
     end
@@ -58,7 +58,7 @@ defmodule UsePlugProxy do
   end
 
   defp maybe_log_cache_keys(cache_keys) do
-    if Application.get_env(:use_plug_proxy, :log_cache_keys) do
+    if Application.get_env(:mu_cache, :log_cache_keys) do
       # credo:disable-for-next-line Credo.Check.Warning.IoInspect
       IO.inspect(cache_keys, label: "Cache keys")
     end
