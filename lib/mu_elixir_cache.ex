@@ -5,6 +5,12 @@ defmodule MuElixirCache do
   use Application
 
   def start(_type, _args) do
+    public_port_env =
+      System.get_env("PROXY_PORT") && elem(Integer.parse(System.get_env("PROXY_PORT")), 0)
+
+    port = public_port_env || 8888
+
+
     IO.puts("Starting application")
     # List all child processes to be supervised
     children = [
@@ -13,7 +19,7 @@ defmodule MuElixirCache do
        scheme: :http,
        plug: MuCachePlug,
        options: [
-         port: 80,
+         port: port,
          protocol_options: [max_header_value_length: 409_600_000, max_keepalive: 1000]
        ]}
     ]
