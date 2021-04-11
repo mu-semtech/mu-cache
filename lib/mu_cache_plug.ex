@@ -1,6 +1,6 @@
-alias Cache.Registry, as: Cache
-
 defmodule MuCachePlug do
+  alias Cache.Registry, as: Cache
+
   @moduledoc """
   Router for receiving cache requests.
   """
@@ -9,6 +9,17 @@ defmodule MuCachePlug do
   plug(Plug.Logger)
   plug(:match)
   plug(:dispatch)
+
+  @request_manipulators []
+  @response_manipulators [
+    Manipulators.CacheKeyLogger,
+    Manipulators.StoreResponse,
+    Manipulators.RemoveCacheRelatedKeys
+  ]
+  @manipulators ProxyManipulatorSettings.make_settings(
+                  @request_manipulators,
+                  @response_manipulators
+                )
 
   get "/cachecanhasresponse" do
     send_resp(conn, 200, "debugging is a go")
@@ -20,21 +31,22 @@ defmodule MuCachePlug do
     |> Enum.map(&Poison.decode!/1)
     # remove nil values
     |> Enum.filter(& &1)
-    |> Enum.map(&maybe_log_clear_keys/1)
+    |> Enum.map(&maybe_log_delta_clear_keys/1)
     |> Enum.map(&Cache.clear_keys/1)
 
     Plug.Conn.send_resp(conn, 204, "")
   end
 
   match "/*path" do
-    full_path = Enum.reduce(path, "", fn a, b -> b <> "/" <> a end)
+    full_path = conn.request_path
     known_allowed_groups = get_string_header(conn.req_headers, "mu-auth-allowed-groups")
     conn = Plug.Conn.fetch_query_params(conn)
 
     cond do
       known_allowed_groups == nil ->
         # without allowed groups, we don't know the access rights
-        calculate_response_from_backend(full_path, conn)
+        # calculate_response_from_backend(full_path, conn)
+        ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
 
       cached_value =
           Cache.find_cache({conn.method, full_path, conn.query_string, known_allowed_groups}) ->
@@ -43,93 +55,11 @@ defmodule MuCachePlug do
 
       true ->
         # without a cache, we should consult the backend
-        IO.puts("Cache miss")
-        calculate_response_from_backend(full_path, conn)
+        # IO.inspect(
+        #   {conn.method, full_path, conn.query_string, known_allowed_groups}, label: "Cache miss for signature")
+
+        ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
     end
-  end
-
-  defp maybe_log_clear_keys(clear_keys) do
-    if Application.get_env(:mu_cache, :log_clear_keys) do
-      # credo:disable-for-next-line Credo.Check.Warning.IoInspect
-      IO.inspect(clear_keys, label: "Clear keys")
-    end
-
-    clear_keys
-  end
-
-  defp maybe_log_cache_keys(cache_keys) do
-    if Application.get_env(:mu_cache, :log_cache_keys) do
-      # credo:disable-for-next-line Credo.Check.Warning.IoInspect
-      IO.inspect(cache_keys, label: "Cache keys")
-    end
-
-    cache_keys
-  end
-
-  @spec calculate_response_from_backend(String.t(), Plug.Conn.t()) :: Plug.Conn.t()
-  defp calculate_response_from_backend(full_path, conn) do
-    # Full path starts with /
-    url = "http://backend" <> full_path
-
-    url =
-      case conn.query_string do
-        "" -> url
-        query -> url <> "?" <> query
-      end
-
-    opts = PlugProxy.init(url: url)
-
-    processors = %{
-      header_processor: fn headers, _conn, state ->
-        headers = downcase_headers(headers)
-
-        {headers, cache_keys} = extract_json_header(headers, "cache-keys")
-        {headers, clear_keys} = extract_json_header(headers, "clear-keys")
-
-        maybe_log_cache_keys(cache_keys)
-        maybe_log_clear_keys(clear_keys)
-
-        {headers,
-         %{
-           state
-           | headers: headers,
-             allowed_groups: get_string_header(headers, "mu-auth-allowed-groups"),
-             cache_keys: cache_keys,
-             clear_keys: clear_keys
-         }}
-      end,
-      chunk_processor: fn chunk, state ->
-        # IO.puts "Received chunk:"
-        # IO.inspect chunk
-        {chunk, %{state | body: state.body <> chunk}}
-      end,
-      body_processor: fn body, state ->
-        # IO.puts "Received body:"
-        # IO.inspect body
-        {body, %{state | body: state.body <> body}}
-      end,
-      finish_hook: fn state ->
-        # IO.puts "Fully received body"
-        # IO.puts state.body
-        # IO.puts "Current state:"
-        # IO.inspect state
-        Cache.store({conn.method, full_path, conn.query_string, state.allowed_groups}, state)
-        {true, state}
-      end,
-      state: %{
-        is_processor_state: true,
-        body: "",
-        headers: %{},
-        status_code: 200,
-        cache_keys: [],
-        clear_keys: [],
-        allowed_groups: nil
-      }
-    }
-
-    conn
-    |> Map.put(:processors, processors)
-    |> PlugProxy.call(opts)
   end
 
   defp respond_with_cache(conn, cached_value) do
@@ -138,30 +68,16 @@ defmodule MuCachePlug do
     |> send_resp(200, cached_value.body)
   end
 
-  defp extract_json_header(headers, header_name) do
-    case List.keyfind(headers, header_name, 0) do
-      {^header_name, keys} ->
-        new_headers = List.keydelete(headers, header_name, 0)
-        {new_headers, Poison.decode!(keys)}
-
-      _ ->
-        {headers, []}
+  defp maybe_log_delta_clear_keys(clear_keys) do
+    if Application.get_env(:mu_cache, :log_clear_keys) do
+      # credo:disable-for-next-line Credo.Check.Warning.IoInspect
+      IO.inspect(clear_keys, label: "Clear keys")
     end
   end
 
   defp get_string_header(headers, header_name) do
-    case List.keyfind(headers, header_name, 0) do
-      {^header_name, string} ->
-        string
-
-      _ ->
-        nil
-    end
-  end
-
-  defp downcase_headers(headers) do
-    Enum.map(headers, fn {header, content} ->
-      {String.downcase(header), content}
-    end)
+    headers
+    |> List.keyfind(header_name, 0, {nil, nil})
+    |> elem(1)
   end
 end
