@@ -14,6 +14,7 @@ defmodule MuCachePlug do
   @response_manipulators [
     Manipulators.CacheKeyLogger,
     Manipulators.StoreResponse,
+    Manipulators.InformFoldingRegistry,
     Manipulators.RemoveCacheRelatedKeys
   ]
   @manipulators ProxyManipulatorSettings.make_settings(
@@ -42,15 +43,20 @@ defmodule MuCachePlug do
     known_allowed_groups = get_string_header(conn.req_headers, "mu-auth-allowed-groups")
     conn = Plug.Conn.fetch_query_params(conn)
 
+    # IO.inspect(known_allowed_groups, label: "Known allowed groups")
+    # IO.inspect(Cache.may_cache_method(conn.method), label: "May cache method")
+    # IO.inspect(Cache.cache_header_for_conn(conn), label: "Cache header")
+
     cond do
-      known_allowed_groups == nil ->
+      known_allowed_groups == nil || !Cache.may_cache_method(conn.method) ->
         # without allowed groups, we don't know the access rights
         # calculate_response_from_backend(full_path, conn)
+        # IO.puts("Not allowed to cache request")
         ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
 
-      cached_value =
-          Cache.find_cache({conn.method, full_path, conn.query_string, known_allowed_groups}) ->
+      cached_value = Cache.find_cache(Cache.cache_header_for_conn(conn)) ->
         # with allowed groups and a cache, we should use the cache
+        # IO.puts("From cache")
         respond_with_cache(conn, cached_value)
 
       true ->
@@ -58,8 +64,30 @@ defmodule MuCachePlug do
         # IO.inspect(
         #   {conn.method, full_path, conn.query_string, known_allowed_groups}, label: "Cache miss for signature")
 
-        ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
+        case Folding.RequestRegistry.get_pid_or_register(conn) do
+          {:running, _pid} ->
+            # IO.puts("FOUND RUNNING (folding)")
+            # This is handled by Folding.ForwardToConn now :)
+
+            # This should wait for the connection to be finished
+            receive do
+              {:finish_plug, plug} ->
+                plug
+            end
+
+          # :ok
+
+          {:none, pid} ->
+            # IO.puts("NONE RUNNING (booting)")
+            # We received a runinng request, we must store it so we can
+            # forward data to it.
+            conn = Plug.Conn.assign(conn, :running_request_handler, pid)
+            ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
+        end
     end
+
+    # TODO: I think we must return the plug here, and therefore should
+    # wait in one of the earlier steps.
   end
 
   defp respond_with_cache(conn, cached_value) do

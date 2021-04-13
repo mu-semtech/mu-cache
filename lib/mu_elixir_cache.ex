@@ -15,6 +15,7 @@ defmodule MuElixirCache do
     # List all child processes to be supervised
     children = [
       {Cache.Registry, %{}},
+      {Folding.RequestRegistry,%{}},
       {Plug.Cowboy,
        scheme: :http,
        plug: MuCachePlug,

@@ -10,6 +10,18 @@ defmodule Cache.Registry do
   @doc "Allowed groups is currently treated as a string, if none were supplied, we can use nil instead."
   @type allowed_groups :: String.t() | nil
 
+  @spec cache_header_for_conn(Plug.Conn.t()) :: header
+  def cache_header_for_conn(conn) do
+    # NOTE: assumes Plug.Conn.fetch_query_params(conn) was called on conn
+    full_path = conn.request_path
+    [known_allowed_groups] = Plug.Conn.get_req_header(conn, "mu-auth-allowed-groups")
+    {conn.method, full_path, conn.query_string, known_allowed_groups}
+  end
+
+  @spec may_cache_method(binary) :: boolean
+  def may_cache_method(method) when method in ["GET", "HEAD"], do: true
+  def may_cache_method(_), do: false
+
   def find_cache({_method, _full_path, _get_params, _allowed_groups} = key) do
     case GenServer.call(__MODULE__, {:find_cache, key}) do
       {:ok, response} -> response
