@@ -162,7 +162,7 @@ defmodule Cache.Registry do
             }
         }
         """
-        sparql_request = Support.update(query)
+        Support.update(query)
     end)
   end
 end
