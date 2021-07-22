@@ -1,3 +1,4 @@
+# Note: this is copied from https://github.com/mu-semtech/mu-elixir-template should be replaced by integrating the template
 defmodule Support do
   # environment variables
   def sparql_endpoint() do
