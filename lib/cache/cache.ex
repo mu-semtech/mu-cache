@@ -99,7 +99,7 @@ defmodule Cache.Registry do
     cache =
       Enum.reduce(clear_keys, cache, fn clear_key, cache ->
         keys_to_remove = Map.get(caches_by_key, clear_key, [])
-        log_key_to_remove!(keys_to_remove)
+        maybe_send_cleared_key_to_database!(keys_to_remove)
         cache = Map.drop(cache, keys_to_remove)
         cache
       end)
@@ -141,28 +141,30 @@ defmodule Cache.Registry do
     %{state | cache: cache}
   end
 
-  defp log_key_to_remove!(request_key_to_remove) do
+  defp maybe_send_cleared_key_to_database!(request_key_to_remove) do
     # Write to the database when a cache for a url is cleared
-    Enum.map(request_key_to_remove, fn req_key ->
-        {method, path, query, auth} = req_key
-        uuid = Support.generate_uuid()
-        auth_escaped = Support.sparql_escape(auth)
-        query = """
-        PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-        PREFIX mucache: <http://mu.semte.ch/vocabularies/cache/>
-        INSERT DATA {
-            GRAPH<http://mu.semte.ch/application> {
-                <http://semte.baert.jp.net/cache-clear/v0.1/#{uuid}>    a mucache:CacheClear ;
-                                                                        mu:uuid "#{uuid}";
-                                                                        mucache:path "#{path}";
-                                                                        mucache:method "#{method}";
-                                                                        mucache:query "#{query}";
-                                                                        mucache:muAuthAllowedGroups \"\"\"#{auth_escaped}\"\"\";
-                                                                        mucache:muAuthUsedGroups \"\"\"#{auth_escaped}\"\"\".
+    if Application.get_env(:mu_cache, :log_cache_clear_event) do
+        Enum.map(request_key_to_remove, fn req_key ->
+            {method, path, query, auth} = req_key
+            uuid = Support.generate_uuid()
+            auth_escaped = Support.sparql_escape(auth)
+            query = """
+            PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+            PREFIX mucache: <http://mu.semte.ch/vocabularies/cache/>
+            INSERT DATA {
+                GRAPH<http://mu.semte.ch/application> {
+                    <http://semte.baert.jp.net/cache-clear/v0.1/#{uuid}>    a mucache:CacheClear ;
+                                                                            mu:uuid "#{uuid}";
+                                                                            mucache:path "#{path}";
+                                                                            mucache:method "#{method}";
+                                                                            mucache:query "#{query}";
+                                                                            mucache:muAuthAllowedGroups \"\"\"#{auth_escaped}\"\"\";
+                                                                            mucache:muAuthUsedGroups \"\"\"#{auth_escaped}\"\"\".
+                }
             }
-        }
-        """
-        Support.update(query)
-    end)
+            """
+            Support.update(query)
+        end)
+    end
   end
 end
