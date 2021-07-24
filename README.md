@@ -30,5 +30,6 @@ These services may need to be configured in order to enable mu-cache support. Ch
 ## Debugging
 Debugging of cache keys is helped by following environment variables:
 
+  - `LOG_CACHE_CLEAR_EVENT`: Store cache clear events in the database
   - `LOG_CACHE_KEYS`: Logs received cache key to a response
   - `LOG_CLEAR_KEYS`: Logs received clear keys either as a response, or explicitly received through ./mu/delta.

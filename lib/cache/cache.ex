@@ -93,13 +93,18 @@ defmodule Cache.Registry do
     # We have multiple clear_keys and need to update the state for it.
     %{cache: cache, caches_by_key: caches_by_key} = state
 
+    # IO.inspect(clear_keys, label: "Clearing these keys")
+    # IO.inspect(cache, label: "Cache before clearing the keys")
+
     cache =
       Enum.reduce(clear_keys, cache, fn clear_key, cache ->
         keys_to_remove = Map.get(caches_by_key, clear_key, [])
+        maybe_send_cleared_key_to_database!(keys_to_remove)
         cache = Map.drop(cache, keys_to_remove)
         cache
       end)
 
+    # IO.inspect(cache, label: "Cache after clearing the keys")
     caches_by_key = Map.drop(caches_by_key, clear_keys)
 
     %{state | cache: cache, caches_by_key: caches_by_key}
@@ -134,5 +139,32 @@ defmodule Cache.Registry do
     cache = Map.put(cache, request_key, response)
 
     %{state | cache: cache}
+  end
+
+  defp maybe_send_cleared_key_to_database!(request_key_to_remove) do
+    # Write to the database when a cache for a url is cleared
+    if Application.get_env(:mu_cache, :log_cache_clear_event) do
+        Enum.map(request_key_to_remove, fn req_key ->
+            {method, path, query, auth} = req_key
+            uuid = Support.generate_uuid()
+            auth_escaped = Support.sparql_escape(auth)
+            query = """
+            PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+            PREFIX mucache: <http://mu.semte.ch/vocabularies/cache/>
+            INSERT DATA {
+                GRAPH<http://mu.semte.ch/application> {
+                    <http://semte.baert.jp.net/cache-clear/v0.1/#{uuid}>    a mucache:CacheClear ;
+                                                                            mu:uuid "#{uuid}";
+                                                                            mucache:path "#{path}";
+                                                                            mucache:method "#{method}";
+                                                                            mucache:query "#{query}";
+                                                                            mucache:muAuthAllowedGroups \"\"\"#{auth_escaped}\"\"\";
+                                                                            mucache:muAuthUsedGroups \"\"\"#{auth_escaped}\"\"\".
+                }
+            }
+            """
+            Support.update(query)
+        end)
+    end
   end
 end

@@ -38,7 +38,9 @@ defmodule Manipulators.CacheKeyLogger do
   end
 
   defp header_value(headers, header_name) do
-    header = Enum.find(headers, header_name)
+    header =
+      headers
+      |> Enum.find({nil, "[]"}, &match?({header_name, _}, &1))
 
     if header do
       elem(header, 1)
