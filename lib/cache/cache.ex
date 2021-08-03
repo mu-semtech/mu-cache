@@ -17,10 +17,22 @@ defmodule Cache.Registry do
     end
   end
 
+  def get_or_create_coalescer(key) do
+    GenServer.call(__MODULE__, {:get_or_create_coalescer, key})
+  end
+
+  def get_coalesce_pid(key) do
+    case GenServer.call(__MODULE__, {:get_coalesce, key}) do
+      {:ok, response} -> response
+      {:not_found} -> nil
+    end
+  end
+
+  def remove_coalesce_key(key) do
+    GenServer.call(__MODULE__, {:remove_coalesce, key})
+  end
+
   def store({_method, _full_path, _get_params, _allowed_groups} = key, response) do
-    # IO.puts "Going to store new content"
-    # IO.inspect( key, label: "Key to store under" )
-    # IO.inspect( response, label: "Response to save" )
     GenServer.call(__MODULE__, {:store, key, response})
   end
 
@@ -32,11 +44,42 @@ defmodule Cache.Registry do
   # GenServer API
   ###
   def start_link(_) do
-    GenServer.start_link(__MODULE__, [%{cache: %{}, caches_by_key: %{}}], name: __MODULE__)
+    GenServer.start_link(__MODULE__, [%{cache: %{}, caches_by_key: %{}, coalesce_handlers: %{}}],
+      name: __MODULE__
+    )
   end
 
   def init(_) do
-    {:ok, %{cache: %{}, caches_by_key: %{}}}
+    {:ok, %{cache: %{}, caches_by_key: %{}, coalesce_handlers: %{}}}
+  end
+
+  def handle_call({:get_or_create_coalescer, key}, _from, state) do
+    case Map.get(state.coalesce_handlers, key, nil) do
+      nil ->
+        {:ok, pid} = Coalesce.Registry.start(%{})
+        new_state = put_in(state[:coalesce_handlers][key], pid)
+        {:reply, {:created, pid}, new_state}
+
+      pid ->
+        {:reply, {:attach, pid}, state}
+    end
+  end
+
+  def handle_call({:get_coalesce, key}, _from, state) do
+    if Map.has_key?(state.coalesce_handlers, key) do
+      {:reply, {:ok, Map.get(state.coalesce_handlers, key)}, state}
+    else
+      {:reply, {:not_found}, state}
+    end
+  end
+
+  def handle_call({:remove_coalesce, key}, _from, state) do
+    if Map.has_key?(state.coalesce_handlers, key) do
+      {_, new_state} = pop_in(state[:coalesce_handlers][key])
+      {:reply, {:ok}, new_state}
+    else
+      {:reply, {:not_found}, state}
+    end
   end
 
   def handle_call({:find_cache, key}, _from, state) do
@@ -48,20 +91,12 @@ defmodule Cache.Registry do
   end
 
   def handle_call({:store, request_key, response}, _from, state) do
-    # IO.inspect( request_key, label: "Request key" )
-    # IO.inspect( response, label: "Response" )
-
     %{cache_keys: cache_keys, clear_keys: clear_keys} = response
-
-    # IO.inspect { :cache_keys, cache_keys }
-    # IO.inspect { :clear_keys, clear_keys }
 
     state =
       state
       # update state for clear_keys
       |> clear_keys!(clear_keys)
-
-    # IO.puts "Executed clear keys"
 
     if cache_keys == [] do
       {:reply, :ok, state}
@@ -96,6 +131,7 @@ defmodule Cache.Registry do
     cache =
       Enum.reduce(clear_keys, cache, fn clear_key, cache ->
         keys_to_remove = Map.get(caches_by_key, clear_key, [])
+
         cache = Map.drop(cache, keys_to_remove)
         cache
       end)

@@ -14,7 +14,10 @@ defmodule MuCachePlug do
   @response_manipulators [
     Manipulators.CacheKeyLogger,
     Manipulators.StoreResponse,
-    Manipulators.RemoveCacheRelatedKeys
+    Manipulators.RemoveCacheRelatedKeys,
+
+    # Make sure this is the last one, coalescing responses as generated at this point
+    Manipulators.CoalesceResponse
   ]
   @manipulators ProxyManipulatorSettings.make_settings(
                   @request_manipulators,
@@ -49,16 +52,16 @@ defmodule MuCachePlug do
         ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
 
       cached_value =
-          Cache.find_cache({conn.method, full_path, conn.query_string, known_allowed_groups}) ->
+          Cache.find_cache({conn.method, full_path, conn.query_string, Poison.decode!(known_allowed_groups)}) ->
         # with allowed groups and a cache, we should use the cache
         respond_with_cache(conn, cached_value)
 
       true ->
-        # without a cache, we should consult the backend
-        # IO.inspect(
-        #   {conn.method, full_path, conn.query_string, known_allowed_groups}, label: "Cache miss for signature")
-
-        ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
+        key = {conn.method, full_path, conn.query_string, Poison.decode!(known_allowed_groups)}
+        case Cache.get_or_create_coalescer(key) do
+          {:created, _pid} -> ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
+          {:attach, pid} -> Coalesce.Registry.add_connection(pid, conn)
+        end
     end
   end
 

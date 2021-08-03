@@ -9,9 +9,9 @@ defmodule Manipulators.RemoveCacheRelatedKeys do
   @behaviour ProxyManipulator
 
   @impl true
-  def headers(headers, connection) do
+  def headers(headers_inp, connection) do
     new_headers =
-      headers
+      headers_inp
       |> Enum.reject(fn
         {"cache-keys", _} -> true
         {"clear-keys", _} -> true
