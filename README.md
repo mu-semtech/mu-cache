@@ -15,7 +15,7 @@ To add mu-cache to your application stack, add the following snippet to your `do
 ```
 services:
   cache:
-    image: semtech/mu-cache:2.0.0
+    image: semtech/mu-cache:2.0.2
     links:
     - myservice:backend
 ```
