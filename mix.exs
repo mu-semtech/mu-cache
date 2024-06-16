@@ -48,7 +48,9 @@ defmodule UsePlugProxy.Mixfile do
       {:plug_cowboy, "~> 2.4.1"},
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:poison, "~> 2.0"}
+      {:poison, "~> 2.0"},
+      {:uuid, "~> 1.1"},
+      {:httpoison, "~> 1.5"}
     ]
   end
 end

@@ -21,6 +21,7 @@ end
 # 3rd-party users, it should be done in your "mix.exs" file.
 
 config :mu_cache,
+  log_cache_clear_event: CH.system_boolean("LOG_CACHE_CLEAR_EVENT"),
   log_cache_keys: CH.system_boolean("LOG_CACHE_KEYS"),
   log_clear_keys: CH.system_boolean("LOG_CLEAR_KEYS")
 
