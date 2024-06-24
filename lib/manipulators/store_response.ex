@@ -66,6 +66,7 @@ defmodule Manipulators.StoreResponse do
           all_response_headers
           |> Enum.find({nil, "[]"}, &match?({"mu-auth-allowed-groups", _}, &1))
           |> elem(1)
+          |> Poison.decode!()
 
         cache_keys =
           all_response_headers
@@ -78,8 +79,6 @@ defmodule Manipulators.StoreResponse do
           |> Enum.find({nil, "[]"}, &match?({"clear-keys", _}, &1))
           |> elem(1)
           |> Poison.decode!()
-
-        # IO.inspect( {conn_in.method, conn_in.request_path, conn_in.query_string, allowed_groups}, label: "Signature to store" )
 
         Cache.store(
           {conn_in.method, conn_in.request_path, conn_in.query_string, allowed_groups},
@@ -108,8 +107,6 @@ defmodule Manipulators.StoreResponse do
           |> Enum.find({nil, "[]"}, &match?({"clear-keys", _}, &1))
           |> elem(1)
           |> Poison.decode!()
-
-        IO.inspect(clear_keys, label: "Clear keys")
 
         Cache.clear_keys(clear_keys)
 
