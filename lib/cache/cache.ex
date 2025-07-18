@@ -5,19 +5,19 @@ defmodule Cache.Registry do
 
   use GenServer
 
-  @type header :: {String.t(), String.t(), any, allowed_groups}
+  @type header :: {String.t(), String.t(), any, allowed_groups, String.t()}
   @type cache_key :: any
   @doc "Allowed groups is currently treated as a string, if none were supplied, we can use nil instead."
   @type allowed_groups :: String.t() | nil
 
-  def find_cache({_method, _full_path, _get_params, _allowed_groups} = key) do
+  def find_cache({_method, _full_path, _get_params, _allowed_groups, _rewrite_url} = key) do
     case GenServer.call(__MODULE__, {:find_cache, key}) do
       {:ok, response} -> response
       {:not_found} -> nil
     end
   end
 
-  def store({_method, _full_path, _get_params, _allowed_groups} = key, response) do
+  def store({_method, _full_path, _get_params, _allowed_groups, _rewrite_url} = key, response) do
     # IO.puts "Going to store new content"
     # IO.inspect( key, label: "Key to store under" )
     # IO.inspect( response, label: "Response to save" )
@@ -96,6 +96,9 @@ defmodule Cache.Registry do
     cache =
       Enum.reduce(clear_keys, cache, fn clear_key, cache ->
         keys_to_remove = Map.get(caches_by_key, clear_key, [])
+
+        Cache.Notify.clear(keys_to_remove)
+
         cache = Map.drop(cache, keys_to_remove)
         cache
       end)

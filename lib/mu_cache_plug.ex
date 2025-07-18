@@ -40,6 +40,7 @@ defmodule MuCachePlug do
   match "/*path" do
     full_path = conn.request_path
     known_allowed_groups = get_string_header(conn.req_headers, "mu-auth-allowed-groups")
+    x_rewrite_url = get_string_header(conn.req_headers, "x-rewrite-url")
     conn = Plug.Conn.fetch_query_params(conn)
 
     cond do
@@ -49,14 +50,14 @@ defmodule MuCachePlug do
         ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
 
       cached_value =
-          Cache.find_cache({conn.method, full_path, conn.query_string, known_allowed_groups}) ->
+          Cache.find_cache({conn.method, full_path, conn.query_string, known_allowed_groups, x_rewrite_url}) ->
         # with allowed groups and a cache, we should use the cache
         respond_with_cache(conn, cached_value)
 
       true ->
         # without a cache, we should consult the backend
         # IO.inspect(
-        #   {conn.method, full_path, conn.query_string, known_allowed_groups}, label: "Cache miss for signature")
+        #   {conn.method, full_path, conn.query_string, known_allowed_groups, x_rewrite_url}, label: "Cache miss for signature")
 
         ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
     end

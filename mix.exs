@@ -26,7 +26,7 @@ defmodule UsePlugProxy.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     [
-      extra_applications: [:logger, :cowboy, :plug_mint_proxy],
+      extra_applications: [:logger, :cowboy, :plug_mint_proxy, :httpoison],
       mod: {MuElixirCache, []},
       env: []
     ]
@@ -48,7 +48,9 @@ defmodule UsePlugProxy.Mixfile do
       {:plug_cowboy, "~> 2.4.1"},
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:poison, "~> 2.0"}
+      {:poison, "~> 2.0"},
+      {:httpoison, "~> 1.5"},
+      {:uuid, "~> 1.1"}
     ]
   end
 end

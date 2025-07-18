@@ -79,10 +79,15 @@ defmodule Manipulators.StoreResponse do
           |> elem(1)
           |> Poison.decode!()
 
-        # IO.inspect( {conn_in.method, conn_in.request_path, conn_in.query_string, allowed_groups}, label: "Signature to store" )
+        x_rewrite_url =
+          conn_in.req_headers
+          |> List.keyfind("x-rewrite-url", 0, {nil, nil})
+          |> elem(1)
+
+        # IO.inspect( {conn_in.method, conn_in.request_path, conn_in.query_string, allowed_groups, x_rewrite_url}, label: "Signature to store" )
 
         Cache.store(
-          {conn_in.method, conn_in.request_path, conn_in.query_string, allowed_groups},
+          {conn_in.method, conn_in.request_path, conn_in.query_string, allowed_groups, x_rewrite_url},
           %{
             body: response_body,
             headers:
