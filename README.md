@@ -27,8 +27,16 @@ Services that currently support mu-cache:
 
 These services may need to be configured in order to enable mu-cache support. Check their README for details.
 
+## [EXPERIMENTAL] Notify on cache clear
+mu-cache can inform the rest of the stack about cache clear events.  This could be used in combination with push updates.  By default nothing emits such an event.  Supply a regular expression to indicate what should emit events:
+
+  - `CACHE_CLEAR_NOTIFY_REGEX` :: Regular expression which will be matched against the path of the incoming request.
+
+NOTE: currently the incoming request's path as it arrives in mu-cache is matched.  We suspect it will be preferred to match against the path as it arrives in the identifier instead.  These two are generally the same when mu-cache is used.  As long as this feature is flagged EXPERIMENTAL, this may switch to using the path as received by the identifier instead without a major release.
+
 ## Debugging
 Debugging of cache keys is helped by following environment variables:
 
   - `LOG_CACHE_KEYS`: Logs received cache key to a response
   - `LOG_CLEAR_KEYS`: Logs received clear keys either as a response, or explicitly received through ./mu/delta.
+  - `LOG_CLEAR_NOTIFY_PATTERN_MATCHING`: Logs whether or not a cache clear event matched the pattern of `CACHE_CLEAR_NOTIFY_REGEX`.
