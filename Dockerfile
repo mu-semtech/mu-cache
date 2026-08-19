@@ -1,7 +1,6 @@
-# FROM elixir-server
-FROM madnificent/elixir-server:latest
+FROM madnificent/elixir-server:1.13.0
 
-ENV PROXY_PORT 80
+ENV PROXY_PORT=80
 ADD . /app
 
 RUN sh /setup.sh
