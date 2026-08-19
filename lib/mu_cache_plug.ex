@@ -47,7 +47,7 @@ defmodule MuCachePlug do
       known_allowed_groups == nil ->
         # without allowed groups, we don't know the access rights
         # calculate_response_from_backend(full_path, conn)
-        ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
+        ConnectionForwarder.forward(conn, path, backend_url(), @manipulators)
 
       cached_value =
           Cache.find_cache({conn.method, full_path, conn.query_string, known_allowed_groups, x_rewrite_url}) ->
@@ -59,7 +59,7 @@ defmodule MuCachePlug do
         # IO.inspect(
         #   {conn.method, full_path, conn.query_string, known_allowed_groups, x_rewrite_url}, label: "Cache miss for signature")
 
-        ConnectionForwarder.forward(conn, path, "http://backend/", @manipulators)
+        ConnectionForwarder.forward(conn, path, backend_url(), @manipulators)
     end
   end
 
@@ -67,6 +67,10 @@ defmodule MuCachePlug do
     conn
     |> merge_resp_headers(cached_value.headers)
     |> send_resp(200, cached_value.body)
+  end
+
+  defp backend_url do
+    Application.get_env(:mu_cache, :backend_url)
   end
 
   defp maybe_log_delta_clear_keys(clear_keys) do
