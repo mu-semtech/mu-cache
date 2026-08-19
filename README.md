@@ -20,6 +20,16 @@ services:
     - myservice:backend
 ```
 
+By default mu-cache forwards requests to the `backend` hostname (i.e. `http://backend/`).  This can be overridden by setting the `BACKEND_URL` environment variable.  For example:
+
+```
+services:
+  cache:
+    image: semtech/mu-cache:2.0.2
+    environment:
+      BACKEND_URL: "http://my-service/"
+```
+
 ## Supported services
 
 Services that currently support mu-cache:

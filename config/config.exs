@@ -31,7 +31,8 @@ config :mu_cache,
   log_cache_keys: CH.system_boolean("LOG_CACHE_KEYS"),
   log_clear_keys: CH.system_boolean("LOG_CLEAR_KEYS"),
   push_regex: CH.system_regex("CACHE_CLEAR_NOTIFY_PATH_REGEX", "u"),
-  log_push_regex: CH.system_boolean("LOG_CLEAR_NOTIFY_PATH_MATCHING")
+  log_push_regex: CH.system_boolean("LOG_CLEAR_NOTIFY_PATH_MATCHING"),
+  backend_url: System.get_env("BACKEND_URL") || "http://backend/"
 
 # You can configure for your application as:
 #
