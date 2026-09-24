@@ -73,6 +73,8 @@ defmodule MuCachePlug do
     if Application.get_env(:mu_cache, :log_clear_keys) do
       # credo:disable-for-next-line Credo.Check.Warning.IoInspect
       IO.inspect(clear_keys, label: "Clear keys")
+    else
+      clear_keys
     end
   end
 
