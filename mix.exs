@@ -43,9 +43,9 @@ defmodule UsePlugProxy.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:plug_mint_proxy, git: "https://github.com/madnificent/plug-mint-proxy.git", branch: "feature/separate-example-runner"},
-      {:plug, "~> 1.11.1"},
-      {:plug_cowboy, "~> 2.4.1"},
+      {:plug_mint_proxy, git: "https://github.com/madnificent/plug-mint-proxy.git", tag: "v0.4.0"},
+      {:plug, "~> 1.19.2"},
+      {:plug_cowboy, "~> 2.8"},
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:poison, "~> 2.0"},
