@@ -1,4 +1,4 @@
-FROM madnificent/elixir-server:1.13.0
+FROM madnificent/elixir-server:1.14.0
 
 ENV PROXY_PORT=80
 ADD . /app
