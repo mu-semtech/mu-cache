@@ -15,7 +15,7 @@ To add mu-cache to your application stack, add the following snippet to your `do
 ```
 services:
   cache:
-    image: semtech/mu-cache:2.2.0
+    image: semtech/mu-cache:2.3.0
     links:
     - myservice:backend
 ```
@@ -25,7 +25,7 @@ By default mu-cache forwards requests to the `backend` hostname (i.e. `http://ba
 ```
 services:
   cache:
-    image: semtech/mu-cache:2.0.2
+    image: semtech/mu-cache:2.3.0
     environment:
       BACKEND_URL: "http://my-service/"
 ```
